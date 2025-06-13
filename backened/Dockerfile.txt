@@ -1,0 +1,17 @@
+# Use Node.js version 18 image
+FROM node:18
+
+# Set working directory inside container
+WORKDIR /app
+
+# Copy all files to container's /app directory
+COPY . .
+
+# Install app dependencies
+RUN npm install
+
+# Expose port 3033 (or your server's port)
+EXPOSE 3033
+
+# Run the app using node server.js
+CMD ["node", "server.js"]
