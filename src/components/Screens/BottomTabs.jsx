@@ -7,17 +7,18 @@ import {
   Plus,
   Lightbulb,
   MoreHorizontal,
-  Menu
+  Menu,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import * as Speech from 'expo-speech';
+import * as Speech from "expo-speech";
 
-import AISuggestionsScreen from './AISuggestionsScreen';
-import TransactionsScreen from './TransactionScreen';
-import ReportsScreen from './ReportsScreen';
+import AISuggestionsScreen from "./AISuggestionsScreen"; // no longer used directly here
+import TransactionsScreen from "./TransactionScreen";
+import ReportsScreen from "./ReportsScreen";
 import Dashboard from "./Dashboard";
 import BudgetScreen from "./BudgetScreen";
-import SpeakOnPress from './SpeakOnPress';
+import MoreScreen from "./MoreScreen"; // import your MoreScreen here
+import SpeakOnPress from "./SpeakOnPress";
 
 const Tab = createBottomTabNavigator();
 
@@ -59,7 +60,7 @@ const BottomTabs = () => {
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
-          position: 'relative',
+          position: "relative",
           bottom: 0,
           backgroundColor: "#ffffff",
           borderRadius: 15,
@@ -91,10 +92,12 @@ const BottomTabs = () => {
           headerLeft: () => (
             <View style={{ marginLeft: 15 }}>
               <SpeakOnPress textToSpeak="Open Menu" navigateTo="Settings">
-                <TouchableOpacity onPress={() => {
-                  Speech.speak("Opening Menu");
-                  navigation.openDrawer();
-                }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    Speech.speak("Opening Menu");
+                    navigation.openDrawer();
+                  }}
+                >
                   <Menu size={30} color="black" />
                 </TouchableOpacity>
               </SpeakOnPress>
@@ -102,23 +105,25 @@ const BottomTabs = () => {
           ),
         }}
       />
+
       <Tab.Screen
-        name="Suggestions"
-        component={AISuggestionsScreen}
+        name="Budgets" // was Suggestions, now Budgets
+        component={BudgetScreen} // was AISuggestionsScreen, now BudgetScreen
         options={{
           tabBarIcon: ({ color }) => (
-            <SpeakOnPress textToSpeak="Navigate to Suggestions Screen" navigateTo="Suggestions">
-              <Lightbulb size={28} color={color} />
+            <SpeakOnPress textToSpeak="Navigating to Budgets Screen" navigateTo="Budgets">
+              <MoreHorizontal size={28} color={color} />
             </SpeakOnPress>
           ),
           tabBarLabel: () => (
-            <SpeakOnPress textToSpeak="Suggestions">
-              <Text>Suggestions</Text>
+            <SpeakOnPress textToSpeak="Budgets">
+              <Text>Budgets</Text>
             </SpeakOnPress>
           ),
           headerShown: false,
         }}
       />
+
       <Tab.Screen
         name="Transactions"
         component={TransactionsScreen}
@@ -130,6 +135,7 @@ const BottomTabs = () => {
           headerShown: false,
         }}
       />
+
       <Tab.Screen
         name="Reports"
         component={ReportsScreen}
@@ -147,18 +153,19 @@ const BottomTabs = () => {
           headerShown: false,
         }}
       />
+
       <Tab.Screen
-        name="Budgets"
-        component={BudgetScreen}
+        name="More" // was Budget, now More
+        component={MoreScreen} // Use MoreScreen component here
         options={{
           tabBarIcon: ({ color }) => (
-            <SpeakOnPress textToSpeak="Navigating to Budgets Screen" navigateTo="Budgets">
-              <MoreHorizontal size={28} color={color} />
+            <SpeakOnPress textToSpeak="Navigating to More Screen" navigateTo="More">
+              <Lightbulb size={28} color={color} />
             </SpeakOnPress>
           ),
           tabBarLabel: () => (
-            <SpeakOnPress textToSpeak="Budgets">
-              <Text>Budgets</Text>
+            <SpeakOnPress textToSpeak="More">
+              <Text>More</Text>
             </SpeakOnPress>
           ),
           headerShown: false,

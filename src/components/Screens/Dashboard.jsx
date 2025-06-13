@@ -79,17 +79,22 @@ const DashboardScreen = () => {
     setCategoryColorMap(colorMap);
   };
 
-  const getFilteredTransactions = () => {
+const getFilteredTransactions = () => {
     const now = moment();
     return transactions.filter((txn) => {
       const date = moment(txn.date);
       if (selectedFilter === 'Daily') return date.isSame(now, 'day');
-      if (selectedFilter === 'Weekly') return date.isSame(now, 'week');
+      if (selectedFilter === 'Weekly') {
+        const startOfWeek = moment().startOf('isoWeek');
+        const endOfWeek = moment().endOf('isoWeek');
+        const endOfMonth = moment().endOf('month');
+        const adjustedEndOfWeek = endOfWeek.isAfter(endOfMonth) ? endOfMonth : endOfWeek;
+        return date.isBetween(startOfWeek, adjustedEndOfWeek, 'day', '[]');
+      }
       if (selectedFilter === 'Monthly') return date.isSame(now, 'month');
       return true;
     });
   };
-
   const getTotal = (type) => {
     return getFilteredTransactions()
       .filter(t => t.type === type)
@@ -131,10 +136,16 @@ const DashboardScreen = () => {
   const getCurrentDateLabel = () => {
     const now = moment();
     if (selectedFilter === 'Daily') return now.format('MMM D, YYYY');
-   if (selectedFilter === 'Weekly') {
-  return `${now.clone().startOf('week').format('MMM D')} - ${now.clone().endOf('week').format('MMM D')}`;
-}
+    if (selectedFilter === 'Weekly') {
+         const startOfWeek = moment().startOf('isoWeek');
+         const endOfWeek = moment().endOf('isoWeek');
+         const endOfMonth = moment().endOf('month');
+         const adjustedEndOfWeek = endOfWeek.isAfter(endOfMonth) ? endOfMonth : endOfWeek;
+         const startFormat = startOfWeek.format('D MMM');
+         const endFormat = adjustedEndOfWeek.format('D MMM YYYY');
+         return `${startFormat} - ${endFormat}`;
 
+       }
     if (selectedFilter === 'Monthly') return now.format('MMMM YYYY');
     return '';
   };
