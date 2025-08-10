@@ -416,8 +416,9 @@ const GoalScreen = () => {
     <View style={styles.container}>
       <Text style={styles.header}>{t.myGoals}</Text>
       <Text style={styles.balance}>
-        {t.totalBalance}: {currency.symbol}{(totalBalance * currency.rate).toFixed(2)}
-      </Text>
+  {t.totalBalance}: {currency.symbol}{Math.abs(totalBalance * currency.rate).toFixed(2)}
+</Text>
+
 
       <FlatList
         data={goals}
