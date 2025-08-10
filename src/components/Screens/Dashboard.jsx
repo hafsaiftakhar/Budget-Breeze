@@ -449,19 +449,24 @@ const getGroupedTransactions = () => {
       <ScrollView style={styles.container}>
         {/* Summary Cards */}
         <View style={styles.cardContainer}>
-          {[
-            { label: t.totalBalance, value: balance * currency.rate },
-            { label: t.income, value: income * currency.rate },
-            { label: t.expense, value: expense * currency.rate },
-            { label: t.budget, value: budgetTotal * currency.rate },
-          ].map((item, idx) => (
-            <View key={idx} style={styles.card}>
-              <Text style={styles.label}>{getLabel(item.label)}</Text>
-              <Text style={styles.value}>
-                {currency.symbol}{item.value.toFixed(2)}
-              </Text>
-            </View>
-          ))}
+          
+            {[
+  { label: t.totalBalance, value: balance * currency.rate },
+  { label: t.income, value: income * currency.rate },
+  { label: t.expense, value: expense * currency.rate },
+  { label: t.budget, value: budgetTotal * currency.rate },
+].map((item, idx) => (
+  <View key={idx} style={styles.card}>
+    <Text style={styles.label}>{getLabel(item.label)}</Text>
+    <Text style={styles.value}>
+      {currency.symbol}
+      {item.label === t.totalBalance 
+        ? Math.abs(item.value).toFixed(2)  // Absolute value, no sign
+        : item.value.toFixed(2)}
+    </Text>
+  </View>
+))}
+
         </View>
 
         {/* Filter Tabs */}
