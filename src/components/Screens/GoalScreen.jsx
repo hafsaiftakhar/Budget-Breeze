@@ -12,11 +12,9 @@ import {
 } from "react-native";
 import Toast from "react-native-toast-message";
 import * as Speech from "expo-speech";
-import { LanguageContext } from "./LanguageContext"; 
-import { CurrencyContext } from "./CurrencyContext"; // ✅ imported
-import { useAccessibility } from './AccessibilityContext';  // accessibility context ka path check karo
-
-
+import { LanguageContext } from "./LanguageContext";
+import { CurrencyContext } from "./CurrencyContext";
+import { useAccessibility } from './AccessibilityContext';  // Check your path
 
 const API_URL = "http://192.168.100.8:3033/api";
 
@@ -204,14 +202,10 @@ const translations = {
   },
 };
 
-
-
-
 const GoalScreen = () => {
   const { language } = useContext(LanguageContext);
   const { currency } = useContext(CurrencyContext);
-    const { accessibilityMode, setAccessibilityMode } = useAccessibility();
-  
+  const { accessibilityMode, setAccessibilityMode } = useAccessibility();
 
   const t = translations[language] || translations.en;
 
@@ -228,17 +222,8 @@ const GoalScreen = () => {
   const [selectedGoalId, setSelectedGoalId] = useState(null);
   const [progressAmount, setProgressAmount] = useState("");
 
-  const fetchGoals = async () => {
-    try {
-      const res = await fetch(`${API_URL}/goals`);
-      const data = await res.json();
-      setGoals(data);
-    } catch (err) {
-      console.error("Error fetching goals:", err);
-    }
-  };
-
-  const fetchTotalBalance = async () => {
+  // Fetch total balance considering progress deductions
+  const fetchTotalBalance = async (totalProgress = 0) => {
     try {
       const response = await fetch("http://192.168.100.8:3033/transactions");
       const transactions = await response.json();
@@ -258,16 +243,31 @@ const GoalScreen = () => {
         else if (item.type?.toLowerCase() === "expense") totalExpense += amount;
       });
 
-      setTotalBalance(totalIncome - totalExpense);
+      const balance = totalIncome - totalExpense - totalProgress;
+
+      setTotalBalance(balance);
     } catch (error) {
       console.error("Failed to fetch total balance:", error);
       setTotalBalance(0);
     }
   };
 
+  // Fetch goals and calculate total progress to update balance
+  const fetchGoals = async () => {
+    try {
+      const res = await fetch(`${API_URL}/goals`);
+      const data = await res.json();
+      setGoals(data);
+
+      const totalProgress = data.reduce((sum, goal) => sum + (goal.currentProgress || 0), 0);
+      await fetchTotalBalance(totalProgress);
+    } catch (err) {
+      console.error("Error fetching goals:", err);
+    }
+  };
+
   useEffect(() => {
     fetchGoals();
-    fetchTotalBalance();
   }, []);
 
   const speak = (text) => {
@@ -331,7 +331,7 @@ const GoalScreen = () => {
       }
 
       resetForm();
-      fetchTotalBalance();
+      fetchGoals();  // fetch goals again to update balance
     } catch (err) {
       console.error("Error saving goal:", err);
       Toast.show({
@@ -357,6 +357,7 @@ const GoalScreen = () => {
       await fetch(`${API_URL}/goals/${goalId}`, { method: "DELETE" });
       setGoals(goals.filter((g) => g.id !== goalId));
       speak(t.goalDeleted);
+      fetchGoals();  // update balance after deletion
     } catch (err) {
       console.error("Error deleting goal:", err);
       Toast.show({ type: "error", text1: "Failed to delete goal." });
@@ -405,7 +406,10 @@ const GoalScreen = () => {
       setAddProgressModalVisible(false);
       setProgressAmount("");
       speak(achieved ? t.congratulationsGoalAchieved : t.progressAdded);
-      fetchTotalBalance();
+
+      // Update totalBalance locally for instant UI update
+      setTotalBalance(prev => prev - parsedAmount);
+
     } catch (err) {
       console.error("Error updating goal progress:", err);
       Toast.show({ type: "error", text1: "Failed to update goal progress." });
@@ -416,9 +420,8 @@ const GoalScreen = () => {
     <View style={styles.container}>
       <Text style={styles.header}>{t.myGoals}</Text>
       <Text style={styles.balance}>
-  {t.totalBalance}: {currency.symbol}{Math.abs(totalBalance * currency.rate).toFixed(2)}
-</Text>
-
+        {t.totalBalance}: {currency.symbol}{Math.abs(totalBalance * currency.rate).toFixed(2)}
+      </Text>
 
       <FlatList
         data={goals}
@@ -432,8 +435,8 @@ const GoalScreen = () => {
               {t.saved}: {currency.symbol}{(item.currentProgress * currency.rate).toFixed(2)}
             </Text>
             <Text>
-  {t.deadline}: {item.deadline ? item.deadline.toString() : ''}
-</Text>
+              {t.deadline}: {item.deadline ? item.deadline.toString() : ''}
+            </Text>
 
             {item.achieved && (
               <Text style={styles.achievedText}>{t.goalAchieved}</Text>
@@ -469,90 +472,115 @@ const GoalScreen = () => {
         keyExtractor={(item) => item.id.toString()}
       />
 
+      {/* Modal for Adding / Editing Goal */}
+      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{t.addEditGoal}</Text>
+            <TextInput
+              placeholder={t.goalName}
+              style={styles.input}
+              value={goalName}
+              onChangeText={setGoalName}
+              keyboardType="default"
+              accessible={accessibilityMode}
+              accessibilityLabel={t.goalName}
+            />
+            <TextInput
+              placeholder={t.targetAmount}
+              style={styles.input}
+              value={targetAmount}
+              onChangeText={setTargetAmount}
+              keyboardType="numeric"
+              accessible={accessibilityMode}
+              accessibilityLabel={t.targetAmount}
+            />
+            <TextInput
+              placeholder={t.currentProgress}
+              style={styles.input}
+              value={currentProgress}
+              onChangeText={setCurrentProgress}
+              keyboardType="numeric"
+              accessible={accessibilityMode}
+              accessibilityLabel={t.currentProgress}
+            />
+            <TextInput
+              placeholder={t.deadlinePlaceholder}
+              style={styles.input}
+              value={deadline}
+              onChangeText={setDeadline}
+              keyboardType="default"
+              accessible={accessibilityMode}
+              accessibilityLabel={t.deadline}
+            />
+            <View style={styles.modalButtonRow}>
+              <Button
+                title={t.save}
+                onPress={addGoal}
+                accessibilityLabel={t.save}
+              />
+              <Button
+                title={t.cancel}
+                onPress={() => {
+                  resetForm();
+                  speak(t.cancelled);
+                }}
+                color="red"
+                accessibilityLabel={t.cancel}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal for Adding Progress */}
+      <Modal
+        visible={addProgressModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{t.addToProgressTitle}</Text>
+            <TextInput
+              placeholder={t.enterAmount}
+              style={styles.input}
+              value={progressAmount}
+              onChangeText={setProgressAmount}
+              keyboardType="numeric"
+              accessible={accessibilityMode}
+              accessibilityLabel={t.enterAmount}
+            />
+            <View style={styles.modalButtonRow}>
+              <Button
+                title={t.add}
+                onPress={() => updateGoalProgress(selectedGoalId, progressAmount)}
+                accessibilityLabel={t.add}
+              />
+              <Button
+                title={t.cancel}
+                onPress={() => {
+                  setAddProgressModalVisible(false);
+                  setProgressAmount("");
+                  speak(t.cancelledProgress);
+                }}
+                color="red"
+                accessibilityLabel={t.cancel}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <TouchableOpacity
-        style={styles.addGoalButton}
+        style={styles.createGoalButton}
         onPress={() => {
           setModalVisible(true);
           speak(t.createGoalButtonPressed);
         }}
       >
-        <Text style={styles.addGoalButtonText}>{t.createNewGoal}</Text>
+        <Text style={styles.createGoalButtonText}>{t.createNewGoal}</Text>
       </TouchableOpacity>
-
-      {/* Add/Edit Goal Modal */}
-      <Modal visible={modalVisible} animationType="slide">
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>{t.addEditGoal}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t.goalName}
-            value={goalName}
-            onChangeText={setGoalName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={`${t.targetAmount} (${currency.symbol})`}
-            value={targetAmount}
-            keyboardType="numeric"
-            onChangeText={setTargetAmount}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={`${t.currentProgress} (${currency.symbol})`}
-            value={currentProgress}
-            keyboardType="numeric"
-            onChangeText={setCurrentProgress}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={t.deadlinePlaceholder}
-            value={deadline}
-            onChangeText={setDeadline}
-          />
-          <View style={styles.modalButtonRow}>
-            <Button title={t.save} onPress={addGoal} />
-            <Button
-              title={t.cancel}
-              onPress={() => {
-                setModalVisible(false);
-                resetForm();
-                speak(t.cancelled);
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Progress Modal */}
-      <Modal visible={addProgressModalVisible} animationType="slide">
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>{t.addToProgressTitle}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t.enterAmount}
-            value={progressAmount}
-            keyboardType="numeric"
-            onChangeText={setProgressAmount}
-          />
-          <View style={styles.modalButtonRow}>
-            <Button
-              title={t.add}
-              onPress={() => {
-                if (!selectedGoalId) return;
-                updateGoalProgress(selectedGoalId, progressAmount);
-              }}
-            />
-            <Button
-              title={t.cancel}
-              onPress={() => {
-                setAddProgressModalVisible(false);
-                setProgressAmount("");
-                speak(t.cancelledProgress);
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
 
       <Toast />
     </View>
@@ -560,77 +588,110 @@ const GoalScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
-  header: { fontSize: 24, fontWeight: "bold", marginBottom: 10, alignSelf: "center" },
-  balance: { fontSize: 18, marginBottom: 20, alignSelf: "center" },
-  goalCard: {
-    backgroundColor: "#f2f2f2",
-    padding: 10,
-    marginBottom: 12,
-    borderRadius: 8,
-  },
-  goalName: { fontSize: 20, fontWeight: "bold", marginBottom: 6 },
-  achievedText: { color: "green", fontWeight: "bold", marginTop: 6 },
-buttonRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  marginTop: 10,
-  alignItems: "center",
-},
-editButton: {
-  backgroundColor: "#4caf50",
-  paddingVertical: 8, // slightly increased
-  paddingHorizontal: 16, // slightly increased
-  borderRadius: 5,
-  alignItems: "center",
-},
-
-deleteButton: {
-  backgroundColor: "#f44336",
-  paddingVertical: 8, // slightly increased
-  paddingHorizontal: 16, // slightly increased
-  borderRadius: 5,
-  alignItems: "center",
-},
-
-
-
-  addProgressButton: {
-    marginTop: 10,
-    backgroundColor: "#2196f3",
-    padding: 8,
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontWeight: "bold", textAlign: "center" },
-  addGoalButton: {
-    backgroundColor: "#ff9800",
-    padding: 12,
-    borderRadius: 25,
-    position: "absolute",
-    bottom: 30,
-    right: 30,
-  },
-  addGoalButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  modalContainer: {
+  container: {
     flex: 1,
-    padding: 20,
-    justifyContent: "center",
-    backgroundColor: "#fff",
+    padding: 16,
+    backgroundColor: "#f0f4f7",
   },
-  modalTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 15, alignSelf: "center" },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  balance: {
+    fontSize: 18,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  goalCard: {
+    backgroundColor: "#fff",
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  goalName: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  achievedText: {
+    fontSize: 16,
+    color: "green",
+    marginVertical: 8,
+    fontWeight: "bold",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    marginTop: 10,
+    justifyContent: "space-between",
+  },
+  editButton: {
+    backgroundColor: "#2196F3",
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 5,
+  },
+  deleteButton: {
+    backgroundColor: "#f44336",
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 5,
+  },
+  addProgressButton: {
+    backgroundColor: "#4CAF50",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  createGoalButton: {
+    backgroundColor: "#1e90ff",
+    padding: 14,
+    borderRadius: 8,
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+  },
+  createGoalButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 12,
+    textAlign: "center",
+  },
   input: {
     borderWidth: 1,
-    borderColor: "#999",
+    borderColor: "#ddd",
     borderRadius: 8,
     padding: 10,
-    marginBottom: 15,
+    marginVertical: 8,
   },
   modalButtonRow: {
     flexDirection: "row",
     justifyContent: "space-around",
+    marginTop: 12,
   },
 });
 
 export default GoalScreen;
-  

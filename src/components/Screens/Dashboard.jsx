@@ -437,37 +437,48 @@ const getGroupedTransactions = () => {
     }
   }, [expense, income, t.warningExpensesExceedIncome]);
 
-  const pieChartData = getExpenseBreakdown();
+const pieChartData = getExpenseBreakdown();
 
-  const getLabel = (baseLabel) => {
-    if (baseLabel === t.totalBalance) return baseLabel;
-    return `${selectedFilter} ${baseLabel}`;
-  };
+const getLabel = (baseLabel) => {
+  if (baseLabel === t.totalBalance) return baseLabel;
+  return `${selectedFilter} ${baseLabel}`;
+};
 
-  return (
-    <Provider>
-      <ScrollView style={styles.container}>
-        {/* Summary Cards */}
-        <View style={styles.cardContainer}>
-          
-            {[
-  { label: t.totalBalance, value: balance * currency.rate },
-  { label: t.income, value: income * currency.rate },
-  { label: t.expense, value: expense * currency.rate },
-  { label: t.budget, value: budgetTotal * currency.rate },
-].map((item, idx) => (
-  <View key={idx} style={styles.card}>
-    <Text style={styles.label}>{getLabel(item.label)}</Text>
-    <Text style={styles.value}>
-      {currency.symbol}
-      {item.label === t.totalBalance 
-        ? Math.abs(item.value).toFixed(2)  // Absolute value, no sign
-        : item.value.toFixed(2)}
-    </Text>
-  </View>
-))}
+return (
+  <Provider>
+    <ScrollView style={styles.container}>
+      <View style={styles.cardContainer}>
+        {[
+          { label: t.totalBalance, value: balance * currency.rate },
+          { label: t.income, value: income * currency.rate },
+          { label: t.expense, value: expense * currency.rate },
+          { label: t.budget, value: budgetTotal * currency.rate },
+        ].map((item, idx) => (
+          <View key={idx} style={styles.card}>
+            <Text style={styles.label}>{getLabel(item.label)}</Text>
+            <Text
+              style={[
+                styles.value,
+                item.label === t.totalBalance && item.value < 0
+                  ? { color: 'red', fontWeight: 'bold' }
+                  : null,
+              ]}
+            >
+              {currency.symbol}
+              {item.value.toFixed(2)}
+            </Text>
+            {item.label === t.totalBalance && item.value < 0 && (
+              <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 4, fontSize: 12 }}>
+               
+              </Text>
+            )}
+          </View>
+        ))}
+      </View>
 
-        </View>
+     
+
+
 
         {/* Filter Tabs */}
         <View style={styles.filterTabs}>
