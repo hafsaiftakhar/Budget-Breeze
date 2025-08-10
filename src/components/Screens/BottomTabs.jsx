@@ -12,19 +12,22 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import * as Speech from "expo-speech";
 
-import AISuggestionsScreen from "./AISuggestionsScreen"; // no longer used directly here
 import TransactionsScreen from "./TransactionScreen";
 import ReportsScreen from "./ReportsScreen";
 import Dashboard from "./Dashboard";
 import BudgetScreen from "./BudgetScreen";
-import MoreScreen from "./MoreScreen"; // import your MoreScreen here
+import MoreScreen from "./MoreScreen";
 import SpeakOnPress from "./SpeakOnPress";
+
+import { useAccessibility } from "./AccessibilityContext";
 
 const Tab = createBottomTabNavigator();
 
-const CustomTabBarButton = ({ onPress, focused }) => {
+const CustomTabBarButton = ({ onPress, focused, accessibilityMode }) => {
   const handlePress = () => {
-    Speech.speak("Navigate to Transactions Screen");
+    if (accessibilityMode) {
+      Speech.speak("Navigate to Transactions Screen");
+    }
     if (onPress) onPress();
   };
 
@@ -55,6 +58,7 @@ const CustomTabBarButton = ({ onPress, focused }) => {
 
 const BottomTabs = () => {
   const navigation = useNavigation();
+  const { accessibilityMode } = useAccessibility();
 
   return (
     <Tab.Navigator
@@ -78,48 +82,70 @@ const BottomTabs = () => {
         name="Dashboard"
         component={Dashboard}
         options={{
-          tabBarIcon: ({ color }) => (
-            <SpeakOnPress textToSpeak="Navigating to Home Screen" navigateTo="Dashboard">
+          tabBarIcon: ({ color }) =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Navigating to Home Screen" navigateTo="Dashboard">
+                <Home size={28} color={color} />
+              </SpeakOnPress>
+            ) : (
               <Home size={28} color={color} />
-            </SpeakOnPress>
-          ),
-          tabBarLabel: () => (
-            <SpeakOnPress textToSpeak="Home">
+            ),
+          tabBarLabel: () =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Home">
+                <Text>Home</Text>
+              </SpeakOnPress>
+            ) : (
               <Text>Home</Text>
-            </SpeakOnPress>
-          ),
+            ),
           headerShown: true,
           headerLeft: () => (
             <View style={{ marginLeft: 15 }}>
-              <SpeakOnPress textToSpeak="Open Menu" navigateTo="Settings">
+              {accessibilityMode ? (
+                <SpeakOnPress textToSpeak="Open Menu" navigateTo="Settings">
+                  <TouchableOpacity
+                    onPress={() => {
+                      Speech.speak("Opening Menu");
+                      navigation.openDrawer();
+                    }}
+                  >
+                    <Menu size={30} color="black" />
+                  </TouchableOpacity>
+                </SpeakOnPress>
+              ) : (
                 <TouchableOpacity
                   onPress={() => {
-                    Speech.speak("Opening Menu");
                     navigation.openDrawer();
                   }}
                 >
                   <Menu size={30} color="black" />
                 </TouchableOpacity>
-              </SpeakOnPress>
+              )}
             </View>
           ),
         }}
       />
 
       <Tab.Screen
-        name="Budgets" // was Suggestions, now Budgets
-        component={BudgetScreen} // was AISuggestionsScreen, now BudgetScreen
+        name="Budgets"
+        component={BudgetScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <SpeakOnPress textToSpeak="Navigating to Budgets Screen" navigateTo="Budgets">
+          tabBarIcon: ({ color }) =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Navigating to Budgets Screen" navigateTo="Budgets">
+                <MoreHorizontal size={28} color={color} />
+              </SpeakOnPress>
+            ) : (
               <MoreHorizontal size={28} color={color} />
-            </SpeakOnPress>
-          ),
-          tabBarLabel: () => (
-            <SpeakOnPress textToSpeak="Budgets">
+            ),
+          tabBarLabel: () =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Budgets">
+                <Text>Budgets</Text>
+              </SpeakOnPress>
+            ) : (
               <Text>Budgets</Text>
-            </SpeakOnPress>
-          ),
+            ),
           headerShown: false,
         }}
       />
@@ -129,7 +155,11 @@ const BottomTabs = () => {
         component={TransactionsScreen}
         options={{
           tabBarButton: (props) => (
-            <CustomTabBarButton {...props} focused={props.accessibilityState.selected} />
+            <CustomTabBarButton
+              {...props}
+              focused={props.accessibilityState.selected}
+              accessibilityMode={accessibilityMode}
+            />
           ),
           tabBarLabel: () => null,
           headerShown: false,
@@ -140,34 +170,46 @@ const BottomTabs = () => {
         name="Reports"
         component={ReportsScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <SpeakOnPress textToSpeak="Navigating to Reports Screen" navigateTo="Reports">
+          tabBarIcon: ({ color }) =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Navigating to Reports Screen" navigateTo="Reports">
+                <BarChart size={28} color={color} />
+              </SpeakOnPress>
+            ) : (
               <BarChart size={28} color={color} />
-            </SpeakOnPress>
-          ),
-          tabBarLabel: () => (
-            <SpeakOnPress textToSpeak="Reports">
+            ),
+          tabBarLabel: () =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Reports">
+                <Text>Report</Text>
+              </SpeakOnPress>
+            ) : (
               <Text>Report</Text>
-            </SpeakOnPress>
-          ),
+            ),
           headerShown: false,
         }}
       />
 
       <Tab.Screen
-        name="More" // was Budget, now More
-        component={MoreScreen} // Use MoreScreen component here
+        name="More"
+        component={MoreScreen}
         options={{
-          tabBarIcon: ({ color }) => (
-            <SpeakOnPress textToSpeak="Navigating to More Screen" navigateTo="More">
+          tabBarIcon: ({ color }) =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="Navigating to More Screen" navigateTo="More">
+                <Lightbulb size={28} color={color} />
+              </SpeakOnPress>
+            ) : (
               <Lightbulb size={28} color={color} />
-            </SpeakOnPress>
-          ),
-          tabBarLabel: () => (
-            <SpeakOnPress textToSpeak="More">
+            ),
+          tabBarLabel: () =>
+            accessibilityMode ? (
+              <SpeakOnPress textToSpeak="More">
+                <Text>More</Text>
+              </SpeakOnPress>
+            ) : (
               <Text>More</Text>
-            </SpeakOnPress>
-          ),
+            ),
           headerShown: false,
         }}
       />

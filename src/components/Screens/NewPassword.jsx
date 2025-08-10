@@ -8,6 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons'; // Make sure this is installed
+import { useAccessibility } from "./AccessibilityContext";
+
 
 const NewPasswordScreen = ({ route, navigation }) => {
   const { email, otp } = route.params; // Include OTP
@@ -15,6 +17,8 @@ const NewPasswordScreen = ({ route, navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { accessibilityMode, setAccessibilityMode } = useAccessibility();
+  
 
   const handlePasswordReset = async () => {
     if (!newPassword || !confirmPassword) {
@@ -27,6 +31,18 @@ const NewPasswordScreen = ({ route, navigation }) => {
       return;
     }
 
+    // Password validation regex:
+    // Minimum 8 characters, at least one uppercase, one lowercase, one number and one special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+    if (!passwordRegex.test(newPassword)) {
+      Alert.alert(
+        'Weak Password',
+        'Password must be at least 8 characters long and include at least one uppercase letter, one number, and one special character.'
+      );
+      return;
+    }
+
     try {
       const response = await fetch('http://192.168.100.8:3033/api/auth/reset-password', {
         method: 'POST',
@@ -35,7 +51,7 @@ const NewPasswordScreen = ({ route, navigation }) => {
       });
 
       const data = await response.json();
-      if (data.message === 'Password reset successful') {
+      if (data.message === 'Password reset successfully') {
         Alert.alert('Success', 'Your password has been reset successfully.');
         navigation.navigate('Login');
       } else {

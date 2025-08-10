@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 
-const OTPVerificationScreen = ({ route, navigation }) => {
+const OTPVerification= ({ route, navigation }) => {
   const { email, from } = route.params; // get email and from flag
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputs = useRef([]);
@@ -31,7 +31,7 @@ const OTPVerificationScreen = ({ route, navigation }) => {
     }
 
     try {
-      const response = await fetch('http://192.168.100.236:3000/api/auth/verify-otp', {
+      const response = await fetch('http://192.168.100.8:3033/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: otpCode }),
@@ -174,4 +174,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default OTPVerificationScreen;
+export default OTPVerification; 

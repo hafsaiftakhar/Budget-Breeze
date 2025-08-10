@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert, Platform } from "react-native";
+import React, { useEffect, useState, useContext } from "react";
+import { View, Text, StyleSheet, Alert, Platform, TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { LogOut, Lock } from "lucide-react-native";
@@ -7,14 +7,112 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import SpeakOnPress from "./SpeakOnPress";
 import * as FileSystem from "expo-file-system";
-
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+
+import { useAccessibility } from "./AccessibilityContext";
+import { LanguageContext } from "./LanguageContext";  // Language context import
+
+const translations = {
+  en: {
+    welcome: "Welcome,",
+    changePassword: "Change Password",
+    accessibilityMode: "Accessibility Mode",
+    backupToCloud: "Backup to Cloud",
+    restoreFromCloud: "Restore from Cloud",
+    logout: "Logout",
+    guestName: "Guest",
+    pdfSaved: "PDF saved successfully.",
+    backupComplete: "Backup Complete",
+    restoreComplete: "Restore Complete",
+    restoreFailed: "Restore Failed",
+    backupFailed: "Backup Failed",
+    restoreComplete: "Restore Complete",
+    transactionsRestored: "Transactions restored:",
+    budgetsRestored: "Budgets restored:",
+    restoredAt: "Restored at:",
+  },
+  ur: {
+    welcome: "خوش آمدید،",
+    changePassword: "پاس ورڈ تبدیل کریں",
+    accessibilityMode: "دستیابی کا موڈ",
+    backupToCloud: "کلاؤڈ پر بیک اپ",
+    restoreFromCloud: "کلاؤڈ سے بحالی",
+    logout: "لاگ آؤٹ",
+    guestName: "مہمان",
+    pdfSaved: "پی ڈی ایف کامیابی سے محفوظ ہو گیا۔",
+    backupComplete: "بیک اپ مکمل ہوا",
+    restoreComplete: "بیک اپ بحال ہو گیا",
+    restoreFailed: "بحالی ناکام",
+    backupFailed: "بیک اپ ناکام",
+     restoreComplete: "بحالی مکمل ہو گئی",
+    transactionsRestored: "ٹرانزیکشنز بحال ہو گئیں:",
+    budgetsRestored: "بجٹس بحال ہو گئے:",
+    restoredAt: "بحالی کی تاریخ:",
+  },
+  ar: {
+    welcome: "مرحبا،",
+    changePassword: "تغيير كلمة المرور",
+    accessibilityMode: "وضع إمكانية الوصول",
+    backupToCloud: "نسخة احتياطية إلى السحابة",
+    restoreFromCloud: "استعادة من السحابة",
+    logout: "تسجيل خروج",
+    guestName: "ضيف",
+    pdfSaved: "تم حفظ ملف PDF بنجاح.",
+    backupComplete: "اكتمل النسخ الاحتياطي",
+    restoreComplete: "تم الاستعادة",
+    restoreFailed: "فشل الاستعادة",
+    backupFailed: "فشل النسخ الاحتياطي",
+     restoreComplete: "اكتمل الاستعادة",
+    transactionsRestored: "تمت استعادة المعاملات:",
+    budgetsRestored: "تمت استعادة الميزانيات:",
+    restoredAt: "تاريخ الاستعادة:",
+  },
+  fr: {
+    welcome: "Bienvenue,",
+    changePassword: "Changer le mot de passe",
+    accessibilityMode: "Mode Accessibilité",
+    backupToCloud: "Sauvegarder sur le Cloud",
+    restoreFromCloud: "Restaurer depuis le Cloud",
+    logout: "Se déconnecter",
+    guestName: "Invité",
+    pdfSaved: "PDF enregistré avec succès.",
+    backupComplete: "Sauvegarde terminée",
+    restoreComplete: "Restauration terminée",
+    restoreFailed: "Échec de la restauration",
+    backupFailed: "Échec de la sauvegarde",
+     restoreComplete: "Restauration terminée",
+    transactionsRestored: "Transactions restaurées :",
+    budgetsRestored: "Budgets restaurés :",
+    restoredAt: "Restauré à :",
+  },
+  es: {
+    welcome: "Bienvenido,",
+    changePassword: "Cambiar contraseña",
+    accessibilityMode: "Modo accesibilidad",
+    backupToCloud: "Copia de seguridad en la nube",
+    restoreFromCloud: "Restaurar desde la nube",
+    logout: "Cerrar sesión",
+    guestName: "Invitado",
+    pdfSaved: "PDF guardado con éxito.",
+    backupComplete: "Copia de seguridad completa",
+    restoreComplete: "Restauración completa",
+    restoreFailed: "Error al restaurar",
+    backupFailed: "Error al hacer copia de seguridad",
+       restoreComplete: "Restauración completa",
+    transactionsRestored: "Transacciones restauradas:",
+    budgetsRestored: "Presupuestos restaurados:",
+    restoredAt: "Restaurado en:",
+  },
+};
 
 const SettingsScreen = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const navigation = useNavigation();
+  const { accessibilityMode } = useAccessibility();
+  const { language } = useContext(LanguageContext);
+  const t = translations[language] || translations.en;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -36,147 +134,198 @@ const SettingsScreen = () => {
     return `${firstInitial}${lastInitial}`;
   };
 
- const uploadMysqlBackup = async () => {
-   try {
-     const backupApiUrl = "http://192.168.100.8:3033/api/backup";
-     const response = await fetch(backupApiUrl);
-     if (!response.ok) throw new Error("Failed to fetch backup");
- 
-     const data = await response.json();
-     if (data.error) {
-       Alert.alert("Backup Error", data.error);
-       return;
-     }
- 
-     const { transactions = [], budgets = [] } = data;
- 
-     // Filter transactions to required fields
-     const filteredTransactions = transactions.map(({ id, type, amount, category, date }) => ({
-       id,
-       type,
-       amount,
-       category,
-       date,
-     }));
- 
-     const filteredBudgets = budgets.map(({ id, category, amount, createdAt }) => ({
-       id,
-       category,
-       amount,
-       createdAt,
-     }));
- 
-     const htmlContent = `
-       <html>
-         <head>
-           <style>
-             body { font-family: Arial; padding: 20px; }
-             h1 { color: #004a99; }
-             h2 { margin-top: 30px; color: #007bff; }
-             table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-             th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; text-align: left; }
-             th { background-color: #f0f0f0; }
-           </style>
-         </head>
-         <body>
-           <h1>📊 Budget Breeze Backup</h1>
-           <p>Generated on: ${new Date().toLocaleString()}</p>
- 
-           <h2>💸 Transactions</h2>
-           <table>
-             <tr><th>#</th><th>ID</th><th>Type</th><th>Amount</th><th>Category</th><th>Date</th></tr>
-             ${filteredTransactions.map((t, i) =>
-               `<tr><td>${i + 1}</td><td>${t.id}</td><td>${t.type}</td><td>${t.amount}</td><td>${t.category}</td><td>${t.date}</td></tr>`
-             ).join("")}
-           </table>
- 
-           <h2>📅 Budgets</h2>
-           <table>
-             <tr><th>ID</th><th>Category</th><th>Amount</th><th>CreatedAt</th></tr>
-             ${filteredBudgets.map((b) =>
-               `<tr><td>${b.id}</td><td>${b.category}</td><td>${b.amount}</td> <td>${new Date(b.created_at).toLocaleDateString()}</td>
-/td></tr>`
-             ).join("")}
-           </table>
-         </body>
-       </html>
-     `;
- 
-     const { uri } = await Print.printToFileAsync({ html: htmlContent });
- 
-     const newPath = `${FileSystem.documentDirectory}budget_breeze_backup_${Date.now()}.pdf`;
-     await FileSystem.copyAsync({ from: uri, to: newPath });
- 
-     Alert.alert("Backup Complete", "PDF saved successfully.");
- 
-     if (Platform.OS !== "web") {
-       const isAvailable = await Sharing.isAvailableAsync();
-       if (isAvailable) {
-         await Sharing.shareAsync(newPath);
-       }
-     }
-   } catch (error) {
-     console.error("Backup error:", error);
-     Alert.alert("Backup Failed", "Something went wrong while generating the backup.");
-   }
- };
- 
+  // Backup to cloud function
+  const uploadMysqlBackup = async () => {
+    try {
+      const backupApiUrl = "http://192.168.100.8:3033/api/backup";
+      const response = await fetch(backupApiUrl);
+      if (!response.ok) throw new Error("Failed to fetch backup");
 
-  // 🟡 Fix: Wrap this JSX with `return (...)`
+      const data = await response.json();
+      if (data.error) {
+        Alert.alert(t.backupFailed, data.error);
+        return;
+      }
+
+      const { transactions = [], budgets = [] } = data;
+
+      const filteredTransactions = transactions.map(({ id, type, amount, category, date }) => ({
+        id, type, amount, category, date,
+      }));
+
+      const filteredBudgets = budgets.map(({ id, category, amount, created_at }) => ({
+        id, category, amount, createdAt: created_at,
+      }));
+
+      const htmlContent = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial; padding: 20px; }
+              h1 { color: #004a99; }
+              h2 { margin-top: 30px; color: #007bff; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+              th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; text-align: left; }
+              th { background-color: #f0f0f0; }
+            </style>
+          </head>
+          <body>
+            <h1>📊 Budget Breeze Backup</h1>
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+
+            <h2>💸 Transactions</h2>
+            <table>
+              <tr><th>#</th><th>ID</th><th>Type</th><th>Amount</th><th>Category</th><th>Date</th></tr>
+              ${filteredTransactions.map((t, i) =>
+                `<tr><td>${i + 1}</td><td>${t.id}</td><td>${t.type}</td><td>${t.amount}</td><td>${t.category}</td><td>${t.date}</td></tr>`
+              ).join("")}
+            </table>
+
+            <h2>📅 Budgets</h2>
+            <table>
+              <tr><th>ID</th><th>Category</th><th>Amount</th><th>Created At</th></tr>
+              ${filteredBudgets.map((b) =>
+                `<tr><td>${b.id}</td><td>${b.category}</td><td>${b.amount}</td><td>${new Date(b.createdAt).toLocaleDateString()}</td></tr>`
+              ).join("")}
+            </table>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      const newPath = `${FileSystem.documentDirectory}budget_breeze_backup_${Date.now()}.pdf`;
+      await FileSystem.copyAsync({ from: uri, to: newPath });
+
+      Alert.alert(t.backupComplete, t.pdfSaved);
+
+      if (Platform.OS !== "web") {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(newPath);
+        }
+      }
+    } catch (error) {
+      console.error("Backup error:", error);
+      Alert.alert(t.backupFailed, "Something went wrong while generating the backup.");
+    }
+  };
+
+  // Restore from cloud function
+ const restoreMysqlBackup = async () => {
+  try {
+    const backupApiUrl = "http://192.168.100.8:3033/api/backup";
+    const restoreApiUrl = "http://192.168.100.8:3033/api/backup/restore";
+
+    const response = await fetch(backupApiUrl);
+    if (!response.ok) throw new Error("Failed to fetch backup data");
+    const data = await response.json();
+
+    const { transactions = [], budgets = [] } = data;
+
+    const restoreResponse = await fetch(restoreApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactions, budgets }),
+    });
+
+    const restoreData = await restoreResponse.json();
+
+    if (restoreData.error) {
+      Alert.alert(t.restoreFailed || "Restore Failed", restoreData.error);
+    } else {
+      Alert.alert(
+        t.restoreComplete,
+        `${t.transactionsRestored} ${restoreData.transactionsRestored ?? transactions.length}\n` +
+        `${t.budgetsRestored} ${restoreData.budgetsRestored ?? budgets.length}\n` +
+        `${t.restoredAt} ${restoreData.restoredAt ? new Date(restoreData.restoredAt).toLocaleString(language) : new Date().toLocaleString(language)}`,
+        [{ text: "OK", onPress: () => { /* refresh logic agar chahiye */ } }]
+      );
+    }
+  } catch (error) {
+    console.error("Restore error:", error);
+    Alert.alert(t.restoreFailed || "Restore Failed", "Something went wrong while restoring data.");
+  }
+};
+
+
+  // Accessibility aware button wrapper
+  const MaybeSpeakOnPress = ({ textToSpeak, onPress, children }) => {
+    if (accessibilityMode) {
+      return (
+        <SpeakOnPress textToSpeak={textToSpeak} onPress={onPress}>
+          {children}
+        </SpeakOnPress>
+      );
+    }
+    return <TouchableOpacity onPress={onPress}>{children}</TouchableOpacity>;
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#007bff", "#0056b3"]} style={styles.headerContainer}>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarText}>{getInitials()}</Text>
         </View>
-        <Text style={styles.headerText}>Welcome,</Text>
+        <Text style={styles.headerText}>{t.welcome}</Text>
         <Text style={styles.nameText}>
-          {firstName} {lastName}!
+          {(firstName || lastName) ? `${firstName} ${lastName}` : t.guestName}
         </Text>
       </LinearGradient>
 
       <View style={styles.settingsContainer}>
-        <SpeakOnPress
-          textToSpeak="Navigating to Change Password screen"
+        <MaybeSpeakOnPress
+          textToSpeak={t.changePassword}
           onPress={() => navigation.navigate("ChangePassword")}
         >
           <View style={styles.option}>
             <Lock size={24} color="#666" />
-            <Text style={styles.optionText}>Change Password</Text>
+            <Text style={styles.optionText}>{t.changePassword}</Text>
           </View>
-        </SpeakOnPress>
+        </MaybeSpeakOnPress>
 
-        <SpeakOnPress
-          textToSpeak="Navigating to Accessibility Mode screen"
+        <MaybeSpeakOnPress
+          textToSpeak={t.accessibilityMode}
           onPress={() => navigation.navigate("Accessibility")}
         >
           <View style={styles.option}>
             <Ionicons name="accessibility" size={24} color="#666" />
-            <Text style={styles.optionText}>Accessibility Mode</Text>
+            <Text style={styles.optionText}>{t.accessibilityMode}</Text>
           </View>
-        </SpeakOnPress>
+        </MaybeSpeakOnPress>
 
-        <SpeakOnPress textToSpeak="Uploading backup to cloud" onPress={uploadMysqlBackup}>
+        <MaybeSpeakOnPress
+          textToSpeak={t.backupToCloud}
+          onPress={uploadMysqlBackup}
+        >
           <View style={styles.option}>
             <Ionicons name="cloud-upload-outline" size={24} color="#666" />
-            <Text style={styles.optionText}>Backup to Cloud</Text>
+            <Text style={styles.optionText}>{t.backupToCloud}</Text>
           </View>
-        </SpeakOnPress>
+        </MaybeSpeakOnPress>
 
-        <SpeakOnPress
-          textToSpeak="Navigating to Logout screen"
+        <MaybeSpeakOnPress
+          textToSpeak={t.restoreFromCloud}
+          onPress={restoreMysqlBackup}
+        >
+          <View style={styles.option}>
+            <Ionicons name="cloud-download-outline" size={24} color="#666" />
+            <Text style={styles.optionText}>{t.restoreFromCloud}</Text>
+          </View>
+        </MaybeSpeakOnPress>
+
+        <MaybeSpeakOnPress
+          textToSpeak={t.logout}
           onPress={() => navigation.navigate("LogoutScreen")}
         >
           <View style={styles.logoutButton}>
             <LogOut size={22} color="#fff" />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{t.logout}</Text>
           </View>
-        </SpeakOnPress>
+        </MaybeSpeakOnPress>
       </View>
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f5f5" },

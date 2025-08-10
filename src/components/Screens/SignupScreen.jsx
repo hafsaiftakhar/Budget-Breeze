@@ -158,9 +158,10 @@ const SignupScreen = () => {
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>
             Already have an account?{' '}
-            <TouchableOpacity onPress={() => navigation.navigate('VerifyOTP')}>
-              <Text style={styles.loginLink}>Login</Text>
-            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+  <Text style={styles.loginLink}>Login</Text>
+</TouchableOpacity>
+
           </Text>
         </View>
       </View>

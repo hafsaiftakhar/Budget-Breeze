@@ -5,8 +5,11 @@ import { NavigationContainer } from "@react-navigation/native";
 
 import SplashScreen from "./src/components/screens/SplashScreen";
 import DrawerNavigator from "./DrawerNavigator";
+import { useAccessibility } from './AccessibilityContext';  // accessibility context ka path check karo
+
 
 const Stack = createStackNavigator();
+  const { accessibilityMode, setAccessibilityMode } = useAccessibility();
 
 const AppNavigator = () => {
   return (

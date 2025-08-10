@@ -22,7 +22,7 @@ const ForgotPassword = ({ navigation }) => {
       const data = await response.json();
       if (data.message === 'OTP sent to your email') {
         Alert.alert('Check your email for the OTP');
-        navigation.navigate('VerifyOTP', { email, from: 'forgot' });
+        navigation.navigate('OTPVerification', { email, from: 'forgot' });
 
       } else {
         Alert.alert('Error', data.message);
@@ -45,4 +45,4 @@ const ForgotPassword = ({ navigation }) => {
   );
 };
 
-export default ForgotPassword;
+export default ForgotPassword; 

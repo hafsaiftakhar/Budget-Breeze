@@ -1,15 +1,15 @@
-
+version: '3.8'
 
 services:
   backend:
-    build: ./server
+    build: ./backened        # Ensure folder name is 'backend' (not 'backened')
     ports:
       - "3033:3033"
     depends_on:
       - db
 
   frontend:
-    build: ./client
+    build: .                # Frontend code is assumed to be in the current folder (E:\budgetApp1\budget)
     ports:
       - "3000:3000"
     depends_on:
@@ -24,7 +24,7 @@ services:
       MYSQL_USER: hafsa
       MYSQL_PASSWORD: password
     ports:
-      - "3306:3306"
+      - "3306:3306"          # MySQL default port
     volumes:
       - db_data:/var/lib/mysql
 

@@ -3,15 +3,15 @@ import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
 import { Alert, Platform } from "react-native";
 
+const backupApiUrl = "http://192.168.100.8:3033/api/backup"; // your backend URL
+
+// ✅ Generate PDF Backup
 const uploadMysqlBackup = async () => {
   try {
-    const backupApiUrl = "http://192.168.100.8:3033/api/backup";  // apna backend URL daalo
     const response = await fetch(backupApiUrl);
-
     if (!response.ok) throw new Error("Failed to fetch backup data");
 
     const data = await response.json();
-
     if (data.error) {
       Alert.alert("Error", data.error);
       return;
@@ -71,7 +71,6 @@ const uploadMysqlBackup = async () => {
                 <td>${b.category}</td>
                 <td>${b.amount}</td>
                 <td>${new Date(b.created_at).toLocaleDateString()}</td>
-
               </tr>`
             ).join('')}
           </table>
@@ -82,13 +81,12 @@ const uploadMysqlBackup = async () => {
     // PDF create karo
     const { uri } = await Print.printToFileAsync({ html: htmlContent });
 
-    // File ko app directory mein copy karo with timestamp
     const pdfPath = `${FileSystem.documentDirectory}backup_${Date.now()}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: pdfPath });
 
     Alert.alert("Backup Created", "PDF backup generated successfully!");
 
-    // Share karna ho toh:
+    // Share if needed
     if (Platform.OS !== "web") {
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -100,3 +98,34 @@ const uploadMysqlBackup = async () => {
     Alert.alert("Error", "Failed to generate PDF backup.");
   }
 };
+
+// ✅ Restore from backup API
+const restoreMysqlBackup = async () => {
+  try {
+    const restoreApiUrl = "http://192.168.100.8:3033/api/backup/restore";
+    // Ideally you would prepare restore data here.
+    // For demo, fetching existing backup data and re-sending as restore
+
+    const backupResponse = await fetch(backupApiUrl);
+    const backupData = await backupResponse.json();
+
+    const response = await fetch(restoreApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(backupData),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      Alert.alert("Restore Success", result.message || "Data restored successfully.");
+    } else {
+      Alert.alert("Restore Failed", result.error || "Failed to restore data.");
+    }
+  } catch (error) {
+    console.error("Restore error:", error);
+    Alert.alert("Error", "Something went wrong while restoring the backup.");
+  }
+};
+
+export { uploadMysqlBackup, restoreMysqlBackup };

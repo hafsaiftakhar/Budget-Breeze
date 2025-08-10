@@ -1,25 +1,54 @@
-const db = require('../config/db');
+const db = require('../config/db'); // sqlite3 instance
 
-exports.getBackup = async (req, res) => {
-  try {
-    console.log('Running query: SELECT * FROM record');
-    const [transactions] = await db.promise().query('SELECT * FROM record');
-    console.log('Transactions fetched:', transactions.length);
+exports.getBackup = (req, res) => {
+  db.serialize(() => {
+    db.all("SELECT * FROM record", (err, transactions) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Failed to fetch transactions" });
+      }
 
-    console.log('Running query: SELECT * FROM budgets');
-    const [budgets] = await db.promise().query('SELECT * FROM budgets');
-    console.log('Budgets fetched:', budgets.length);
+      db.all("SELECT * FROM budgets", (err2, budgets) => {
+        if (err2) {
+          console.error(err2);
+          return res.status(500).json({ error: "Failed to fetch budgets" });
+        }
 
-    const backupData = {
-      transactions,
-      budgets,
-      createdAt: new Date().toISOString(),
-    };
+        res.json({
+          transactions,
+          budgets,
+          createdAt: new Date().toISOString(),
+        });
+      });
+    });
+  });
+};
 
-    res.json(backupData);
+exports.restoreBackup = (req, res) => {
+  const { transactions = [], budgets = [] } = req.body;
 
-  } catch (err) {
-    console.error('❌ Backup error:', err);
-    res.status(500).json({ error: 'Backup failed' });
-  }
+  db.serialize(() => {
+    db.run("DELETE FROM record");
+    db.run("DELETE FROM budgets");
+
+    const insertRecord = db.prepare("INSERT INTO record (id, type, amount, category, date) VALUES (?, ?, ?, ?, ?)");
+    const insertBudget = db.prepare("INSERT INTO budgets (id, category, amount, created_at) VALUES (?, ?, ?, ?)");
+
+    for (const t of transactions) {
+      insertRecord.run(t.id, t.type, t.amount, t.category, t.date, err => {
+        if (err) console.error("Insert record error:", err);
+      });
+    }
+
+    for (const b of budgets) {
+      insertBudget.run(b.id, b.category, b.amount, b.created_at || new Date().toISOString(), err => {
+        if (err) console.error("Insert budget error:", err);
+      });
+    }
+
+    insertRecord.finalize();
+    insertBudget.finalize();
+
+    res.json({ message: "Restore successful", transactionsRestored: transactions.length, budgetsRestored: budgets.length, restoredAt: new Date().toISOString() });
+  });
 };

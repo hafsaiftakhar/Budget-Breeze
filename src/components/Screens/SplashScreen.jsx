@@ -1,35 +1,58 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, Animated } from 'react-native';
+import { View, Animated, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
-const SplashScreen = ({ navigation }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current; // initial opacity 0
+const SplashScreen = () => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const navigation = useNavigation();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
-      toValue: 1, // fully visible
-      duration: 2000, // 2 seconds
+      toValue: 1,
+      duration: 2000,
       useNativeDriver: true,
     }).start();
 
-    const timer = setTimeout(() => {
-      navigation.replace('LandingPage');
-    }, 5000);
+    const timer = setTimeout(async () => {
+      try {
+        const status = await AsyncStorage.getItem('isLoggedIn');
+        if (status === 'true') {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'DrawerNavigator' }],
+          });
+        } else {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+        }
+      } catch (error) {
+        console.error('Error checking login status:', error);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
+    }, 3000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [fadeAnim, navigation]);
 
   return (
     <View style={styles.container}>
       <Animated.Image
-        source={require('../../../assets/logo1.jpg')}
+        source={require('../../../assets/logo1.jpg')} // apni image ki sahi path daalain
         style={[styles.logo, { opacity: fadeAnim }]}
       />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+export default SplashScreen;
 
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -37,11 +60,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 300,  // size increased from 200 to 300
-    height: 300, // size increased from 200 to 300
+    width: 300,
+    height: 300,
     resizeMode: 'contain',
   },
 });
-
-
-export default SplashScreen;
