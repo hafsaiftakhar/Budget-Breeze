@@ -551,43 +551,72 @@ export default function BudgetScreen({ userId }) {
       <Swipeable renderRightActions={() => renderRightActions(item)}>
         <View style={styles.budgetCard}>
           <View style={styles.budgetCardLeft}>
-            <Text style={styles.budgetCategory}>{t[item.category] || item.category}</Text>
+            {/* Category Name - speak only when tapped */}
+            <SpeakOnPress textToSpeak={t[item.category] || item.category}>
+              <TouchableOpacity>
+                <Text style={styles.budgetCategory}>{t[item.category] || item.category}</Text>
+              </TouchableOpacity>
+            </SpeakOnPress>
 
-            <Text style={styles.budgetAmount}>
-              {t.budget}: {currency.symbol}{itemAmount.toFixed(2)}
-            </Text>
+            {/* Budget Amount */}
+            <SpeakOnPress textToSpeak={`${t.budget}: ${currency.symbol}${itemAmount.toFixed(2)}`}>
+              <TouchableOpacity>
+                <Text style={styles.budgetAmount}>
+                  {t.budget}: {currency.symbol}{itemAmount.toFixed(2)}
+                </Text>
+              </TouchableOpacity>
+            </SpeakOnPress>
 
             {isExpanded && (
               <View style={styles.expandedSection}>
-                <Text style={styles.budgetSpent}>
-                  {t.spent}: {currency.symbol}{itemSpent.toFixed(2)}
-                </Text>
+                <SpeakOnPress textToSpeak={`${t.spent}: ${currency.symbol}${itemSpent.toFixed(2)}`}>
+                  <TouchableOpacity>
+                    <Text style={styles.budgetSpent}>
+                      {t.spent}: {currency.symbol}{itemSpent.toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                </SpeakOnPress>
+
                 {remaining >= 0 ? (
-                  <Text style={styles.detailText}>
-                    {t.left}: {currency.symbol}{remaining.toFixed(2)}
-                  </Text>
+                  <SpeakOnPress textToSpeak={`${t.left}: ${currency.symbol}${remaining.toFixed(2)}`}>
+                    <TouchableOpacity>
+                      <Text style={styles.detailText}>
+                        {t.left}: {currency.symbol}{remaining.toFixed(2)}
+                      </Text>
+                    </TouchableOpacity>
+                  </SpeakOnPress>
                 ) : (
-                  <Text style={[styles.detailText, { color: '#D32F2F' }]}>
-                    {t.overBudget}: {currency.symbol}{Math.abs(remaining).toFixed(2)}
-                  </Text>
+                  <SpeakOnPress textToSpeak={`${t.overBudget}: ${currency.symbol}${Math.abs(remaining).toFixed(2)}`}>
+                    <TouchableOpacity>
+                      <Text style={[styles.detailText, { color: '#D32F2F' }]}>
+                        {t.overBudget}: {currency.symbol}{Math.abs(remaining).toFixed(2)}
+                      </Text>
+                    </TouchableOpacity>
+                  </SpeakOnPress>
                 )}
-                <Text style={styles.detailText}>
-                  {t.filter}: {t[selectedFilter.toLowerCase()]}
-                </Text>
+
+                <SpeakOnPress textToSpeak={`${t.filter}: ${t[selectedFilter.toLowerCase()]}`}>
+                  <TouchableOpacity>
+                    <Text style={styles.detailText}>
+                      {t.filter}: {t[selectedFilter.toLowerCase()]}
+                    </Text>
+                  </TouchableOpacity>
+                </SpeakOnPress>
               </View>
             )}
 
-            <TouchableOpacity
-              onPress={() => setExpandedCategory(isExpanded ? null : item.category)}
-              style={styles.expandBtn}
-            >
-              <Text style={styles.expandBtnText}>{isExpanded ? t.hide : t.showMore}</Text>
-            </TouchableOpacity>
+            {/* Expand/Collapse Button */}
+            <SpeakOnPress textToSpeak={isExpanded ? t.hide : t.showMore} onPress={() => setExpandedCategory(isExpanded ? null : item.category)}>
+              <TouchableOpacity style={styles.expandBtn}>
+                <Text style={styles.expandBtnText}>{isExpanded ? t.hide : t.showMore}</Text>
+              </TouchableOpacity>
+            </SpeakOnPress>
           </View>
         </View>
       </Swipeable>
     );
   };
+
   const renderCategoryCard = ({ item }) => (
     <View style={styles.categoryCard}>
       <TouchableOpacity

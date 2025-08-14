@@ -9,6 +9,9 @@ import { LanguageContext } from "./LanguageContext";
 import { CurrencyContext } from './CurrencyContext';
 import { useAccessibility } from './AccessibilityContext';  // accessibility context ka path check karo
 import * as Speech from 'expo-speech';
+import SpeakOnPress from "./SpeakOnPress";
+
+
 
 
 
@@ -270,51 +273,15 @@ export default function TransactionScreen({ route }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categories, setCategories] = useState({ income: [], expense: [] });
-  const [transactions, setTransactions] = useState([]);
 
-  const [loadingUser, setLoadingUser] = useState(true);
-
-  // Load user ID
-  useEffect(() => {
-    const loadUser = async () => {
-      const storedUserId = await AsyncStorage.getItem('user_id');
-      if (storedUserId) setUserId(storedUserId);
-      setLoadingUser(false);
-    };
-    loadUser();
-  }, []);
-
-  // Fetch transactions
-  useEffect(() => {
-    if (loadingUser || !userId) return;
-
-    const fetchTransactions = async () => {
-      try {
-        const res = await axios.get(`${baseUrl}?user_id=${userId}`);
-        setTransactions(res.data);
-      } catch (err) {
-        console.error('Fetch transactions error:', err.message);
-      }
-    };
-    fetchTransactions();
-  }, [loadingUser, userId]);
-
-  // Translate categories
   useEffect(() => {
     const translatedCategories = {
-      income: initialCategories.income.map(cat => ({
-        ...cat,
-        label: t[cat.key] || cat.key,
-      })),
-      expense: initialCategories.expense.map(cat => ({
-        ...cat,
-        label: t[cat.key] || cat.key,
-      })),
+      income: initialCategories.income.map(cat => ({ ...cat, label: t[cat.key] || cat.key })),
+      expense: initialCategories.expense.map(cat => ({ ...cat, label: t[cat.key] || cat.key })),
     };
     setCategories(translatedCategories);
   }, [language]);
 
-  // Prefill if editing
   useEffect(() => {
     if (editTransaction) {
       setType(editTransaction.type || 'income');
@@ -322,6 +289,13 @@ export default function TransactionScreen({ route }) {
       setSelectedCategory(editTransaction.category);
     }
   }, [editTransaction]);
+
+  const speak = (text) => {
+    if (accessibilityMode) {
+      let locale = language === 'ur' ? 'ur-PK' : 'en-US';
+      Speech.speak(text, { language: locale });
+    }
+  };
 
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return;
@@ -331,25 +305,23 @@ export default function TransactionScreen({ route }) {
     setSelectedCategory(newKey);
     setNewCategoryName('');
     setModalVisible(false);
+    speak(newCat.label);
   };
 
   const saveTransaction = async () => {
     if (!userId) {
-      alert('User not logged in');
+      const msg = 'User not logged in';
+      alert(msg);
+      speak(msg);
       return;
     }
     if (!amount || !selectedCategory) {
       alert(t.pleaseFill);
+      speak(t.pleaseFill);
       return;
     }
 
-    const transactionData = {
-      type,
-      amount: parseFloat(amount),
-      category: selectedCategory,
-      user_id: userId,
-    };
-
+    const transactionData = { type, amount: parseFloat(amount), category: selectedCategory, user_id: userId };
     try {
       let url = baseUrl;
       const method = editTransaction && editTransaction.id ? 'PUT' : 'POST';
@@ -359,17 +331,14 @@ export default function TransactionScreen({ route }) {
       if (response.status === 200) {
         const msg = editTransaction ? t.updateTransaction : t.saveTransaction;
         alert(`✅ ${msg} successfully!`);
-        if (accessibilityMode) Speech.speak(`${msg} successfully!`, { language });
-
+        speak(`${msg} successfully!`);
         setAmount('');
         setSelectedCategory(null);
-
-        const res = await axios.get(`${baseUrl}?user_id=${userId}`);
-        setTransactions(res.data);
       }
     } catch (err) {
-      console.error(err);
-      alert('❌ Error: ' + (err.response?.data?.error || err.message));
+      const errMsg = '❌ Error: ' + (err.response?.data?.error || err.message);
+      alert(errMsg);
+      speak(errMsg);
     }
   };
 
@@ -378,13 +347,16 @@ export default function TransactionScreen({ route }) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
-        <Text style={styles.heading}>{t.transactionType}</Text>
+        <TouchableOpacity onPress={() => speak(t.transactionType)}>
+          <Text style={styles.heading}>{t.transactionType}</Text>
+        </TouchableOpacity>
+
         <View style={styles.toggleContainer}>
           {['income', 'expense'].map(option => (
             <TouchableOpacity
               key={option}
               style={[styles.toggleButton, type === option && styles.toggleSelected]}
-              onPress={() => { setType(option); setSelectedCategory(null); }}
+              onPress={() => { setType(option); setSelectedCategory(null); speak(t[option]); }}
             >
               <Text style={styles.toggleText}>{t[option]}</Text>
             </TouchableOpacity>
@@ -398,23 +370,27 @@ export default function TransactionScreen({ route }) {
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
+            onFocus={() => speak(t.enterAmount)}
           />
           <Text style={styles.currencySymbol}>{currencySymbol}</Text>
         </View>
 
-        <Text style={styles.heading}>{t.selectCategory}</Text>
+        <TouchableOpacity onPress={() => speak(t.selectCategory)}>
+          <Text style={styles.heading}>{t.selectCategory}</Text>
+        </TouchableOpacity>
+
         <View style={styles.categoriesWrapper}>
           {categories[type].map((cat, idx) => (
             <TouchableOpacity
               key={idx}
               style={[styles.categoryItem, selectedCategory === cat.key && styles.selectedCategory]}
-              onPress={() => setSelectedCategory(cat.key)}
+              onPress={() => { setSelectedCategory(cat.key); speak(cat.label); }}
             >
               <Ionicons name={cat.icon} size={24} color="black" />
               <Text style={styles.categoryItemText}>{cat.label}</Text>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.categoryItem} onPress={() => setModalVisible(true)}>
+          <TouchableOpacity style={styles.categoryItem} onPress={() => { setModalVisible(true); speak(t.newCategory); }}>
             <Ionicons name="add-circle-outline" size={24} color="black" />
             <Text style={styles.categoryItemText}>{t.newCategory}</Text>
           </TouchableOpacity>
@@ -435,19 +411,22 @@ export default function TransactionScreen({ route }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t.addNewCategoryTitle}</Text>
+            <TouchableOpacity onPress={() => speak(t.addNewCategoryTitle)}>
+              <Text style={styles.modalTitle}>{t.addNewCategoryTitle}</Text>
+            </TouchableOpacity>
             <TextInput
               style={styles.modalInput}
               placeholder={t.newCategory}
               value={newCategoryName}
               onChangeText={setNewCategoryName}
               autoFocus={true}
+              onFocus={() => speak(t.newCategory)}
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#007bff' }]} onPress={addNewCategory}>
                 <Text style={styles.modalButtonText}>{t.addButton}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#aaa' }]} onPress={() => { setNewCategoryName(''); setModalVisible(false); }}>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#aaa' }]} onPress={() => { setNewCategoryName(''); setModalVisible(false); speak(t.cancelButton); }}>
                 <Text style={styles.modalButtonText}>{t.cancelButton}</Text>
               </TouchableOpacity>
             </View>
@@ -457,6 +436,7 @@ export default function TransactionScreen({ route }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'white', padding: 16 },

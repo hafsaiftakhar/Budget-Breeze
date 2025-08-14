@@ -17,6 +17,7 @@ import { Menu, Provider } from 'react-native-paper';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { useAccessibility } from './AccessibilityContext';  // accessibility context ka path check karo
+import * as Speech from 'expo-speech';
 
 
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -471,6 +472,13 @@ const DashboardScreen = () => {
       ]
     );
   };
+  const speakOnPress = (text) => {
+    if (accessibilityMode && language) {
+      Speech.speak(text, { language: language }); // Uses the selected language
+    }
+  };
+
+
 
 
   const income = getTotal('income');
@@ -502,134 +510,176 @@ const DashboardScreen = () => {
   return (
     <Provider>
       <ScrollView style={styles.container}>
+        {/* Header Cards */}
         <View style={styles.cardContainer}>
-          {[
-            { label: t.totalBalance, value: balance * currency.rate },
-            { label: t.income, value: income * currency.rate },
-            { label: t.expense, value: expense * currency.rate },
-            { label: t.budget, value: budgetTotal * currency.rate },
-          ].map((item, idx) => (
-            <View key={idx} style={styles.card}>
-              <Text style={styles.label}>{getLabel(item.label)}</Text>
-              <Text
-                style={[
-                  styles.value,
-                  item.label === t.totalBalance && item.value < 0
-                    ? { color: 'red', fontWeight: 'bold' }
-                    : null,
-                ]}
+          {[{ label: t.totalBalance, value: balance }, { label: t.income, value: income }, { label: t.expense, value: expense }, { label: t.budget, value: budgetTotal }]
+            .map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.card}
+                onPress={() => speakOnPress(`${getLabel(item.label)}: ${currency.symbol}${(item.value * currency.rate).toFixed(2)}`)}
               >
-                {currency.symbol}
-                {item.value.toFixed(2)}
-              </Text>
-              {item.label === t.totalBalance && item.value < 0 && (
-                <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 4, fontSize: 12 }}>
-
+                <Text style={styles.label}>{getLabel(item.label)}</Text>
+                <Text style={[styles.value, item.label === t.totalBalance && item.value < 0 ? { color: 'red', fontWeight: 'bold' } : null]}>
+                  {currency.symbol}{(item.value * currency.rate).toFixed(2)}
                 </Text>
-              )}
-            </View>
-          ))}
+              </TouchableOpacity>
+            ))}
         </View>
-
-
-
-
 
         {/* Filter Tabs */}
         <View style={styles.filterTabs}>
           {[t.daily, t.weekly, t.monthly].map((filter) => (
             <TouchableOpacity
               key={filter}
-              onPress={() => setSelectedFilter(filter)}
-              style={[styles.filterTab, selectedFilter === filter && styles.activeTab]}>
-              <Text style={selectedFilter === filter ? styles.activeText : styles.inactiveText}>
-                {filter}
-              </Text>
+              onPress={() => { setSelectedFilter(filter); speakOnPress(filter); }}
+              style={[styles.filterTab, selectedFilter === filter && styles.activeTab]}
+            >
+              <Text style={selectedFilter === filter ? styles.activeText : styles.inactiveText}>{filter}</Text>
             </TouchableOpacity>
           ))}
         </View>
-
         {/* Pie Chart */}
         <View style={styles.expenseCard}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{t.expenseBreakdown}</Text>
-            <Text style={{ fontWeight: '600', color: '#007bff' }}>{getCurrentDateLabel()}</Text>
+            {/* Title with speak */}
+            <TouchableOpacity onPress={() => speakOnPress(`${t.expenseBreakdown}`)}>
+              <Text style={styles.cardTitle}>{t.expenseBreakdown}</Text>
+            </TouchableOpacity>
+
+            {/* Date with speak */}
+            <TouchableOpacity onPress={() => speakOnPress(`${getCurrentDateLabel()}`)}>
+              <Text style={{ fontWeight: '600', color: '#007bff' }}>{getCurrentDateLabel()}</Text>
+            </TouchableOpacity>
+
+            {/* Menu */}
             <Menu
               visible={menuVisible}
               onDismiss={() => setMenuVisible(false)}
               anchor={
-                <TouchableOpacity onPress={() => setMenuVisible(true)}>
+                <TouchableOpacity onPress={() => { setMenuVisible(true); speakOnPress('Menu'); }}>
                   <Ionicons name="ellipsis-vertical" size={20} color="black" />
                 </TouchableOpacity>
-              }>
-              <Menu.Item title={t.export} onPress={() => { }} />
-              <Menu.Item title={t.settings} onPress={() => { }} />
+              }
+            >
+              <Menu.Item
+                title={t.export}
+                onPress={() => { speakOnPress(t.export); /* export logic */ }}
+              />
+              <Menu.Item
+                title={t.settings}
+                onPress={() => { speakOnPress(t.settings); /* settings logic */ }}
+              />
             </Menu>
           </View>
-
-          {pieChartData.length > 0 ? (
-            <PieChart
-              data={pieChartData}
-              width={screenWidth - 30}
-              height={220}
-              chartConfig={{
-                backgroundColor: '#fff',
-                backgroundGradientFrom: '#fff',
-                backgroundGradientTo: '#fff',
-                color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
-              }}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="80"
-              hasLegend={false}
-            />
-          ) : (
-            <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>{t.noExpenseData}</Text>
-          )}
         </View>
+
+
+        {pieChartData.length > 0 ? (
+          <PieChart
+            data={pieChartData.map(item => ({
+              ...item,
+              // Har slice ko touchable banake speakOnPress
+              onPress: () => speakOnPress(`${categoryTranslations[language]?.[item.name] || item.name}: ${currency.symbol}${item.amount.toFixed(2)}`)
+            }))}
+            width={screenWidth - 30}
+            height={220}
+            chartConfig={{
+              backgroundColor: '#fff',
+              backgroundGradientFrom: '#fff',
+              backgroundGradientTo: '#fff',
+              color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+            }}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="80"
+            hasLegend={false}
+          />
+        ) : (
+          <TouchableOpacity onPress={() => speakOnPress(t.noExpenseData)}>
+            <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>{t.noExpenseData}</Text>
+          </TouchableOpacity>
+        )}
 
         {/* View Details */}
         {pieChartData.length > 0 && (
           <>
-            <View style={styles.viewDetailsContainer}>
+            <TouchableOpacity style={styles.viewDetailsContainer} onPress={() => speakOnPress(t.viewDetails)}>
               <Text style={styles.viewDetailsText}>{t.viewDetails}</Text>
               <Feather name="arrow-down" size={18} color="#007bff" />
-            </View>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* View Details */}
+        {pieChartData.length > 0 && (
+          <>
+            <TouchableOpacity
+              style={styles.viewDetailsContainer}
+              onPress={() => speakOnPress(t.viewDetails)}
+            >
+              <Text style={styles.viewDetailsText}>{t.viewDetails}</Text>
+              <Feather name="arrow-down" size={18} color="#007bff" />
+            </TouchableOpacity>
 
             <View style={styles.detailsLineContainer}>
               {Object.entries(getGroupedTransactions()).map(([category, txnList], index) => (
                 <View key={index}>
                   {txnList.map((txn) => (
-                    <View key={txn.id} style={styles.detailLineItem}>
-                      <Feather name="arrow-right" size={16} color="#007bff" style={{ marginRight: 8 }} />
-                      <View style={[styles.detailColorBoxSmall, { backgroundColor: txn.color }]} />
+                    <TouchableOpacity
+                      key={txn.id}
+                      style={styles.detailLineItem}
+                      onPress={() =>
+                        speakOnPress(
+                          `${categoryTranslations[language]?.[txn.category] || txn.category}: ${currency.symbol}${parseFloat(txn.amount).toFixed(2)}`
+                        )
+                      }
+                    >
+                      <Feather
+                        name="arrow-right"
+                        size={16}
+                        color="#007bff"
+                        style={{ marginRight: 8 }}
+                      />
+                      <View
+                        style={[
+                          styles.detailColorBoxSmall,
+                          { backgroundColor: txn.color },
+                        ]}
+                      />
                       <Text style={styles.detailCategoryLine}>
                         {categoryTranslations[language]?.[txn.category] || txn.category}
                       </Text>
 
                       <Text style={styles.detailAmountLine}>
-                        {currency.symbol}{parseFloat(txn.amount).toFixed(2)}
+                        {currency.symbol}
+                        {parseFloat(txn.amount).toFixed(2)}
                       </Text>
-                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#ffc107' }]} onPress={() => handleEdit(txn)}>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#ffc107' }]}
+                        onPress={() => handleEdit(txn)}
+                      >
                         <Feather name="edit-3" size={16} color="#fff" />
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#dc3545' }]} onPress={() => handleDelete(txn)}>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#dc3545' }]}
+                        onPress={() => handleDelete(txn)}
+                      >
                         <Feather name="trash" size={16} color="#fff" />
                       </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               ))}
             </View>
           </>
         )}
+
+
       </ScrollView>
     </Provider>
   );
 };
-
-
-
 
 
 

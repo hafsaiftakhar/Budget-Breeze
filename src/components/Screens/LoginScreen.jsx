@@ -31,7 +31,7 @@ const LoginScreen = ({ navigation, setIsLoggedIn }) => {
         Alert.alert('Success', 'Login Successful');
 
         // Navigate to DrawerNavigator
-
+        navigation.replace('DrawerNavigators', { userId });
 
       }
     } catch (error) {

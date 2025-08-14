@@ -14,11 +14,18 @@ import DrawerNavigator from "./src/components/Screens/DrawerNavigator";
 import ChangePasswordScreen from "./src/components/Screens/ChangePasswordScreen";
 import LogoutScreen from "./src/components/Screens/LogoutScreen";
 import NotificationScreen from './src/components/Screens/NotificationScreen';
+import Accessibility from './src/components/Screens/Accessibility';
 
 // Context Providers
 import { AccessibilityProvider } from "./src/components/Screens/AccessibilityContext";
 import { CurrencyProvider } from "./src/components/Screens/CurrencyContext";
 import { LanguageProvider } from "./src/components/Screens/LanguageContext";
+
+import LanguageChangeScreen from './src/components/Screens/LanguageChangeScreen';
+import GoalScreen from './src/components/Screens/GoalScreen';
+import PastSpendingSuggestionScreen from './src/components/Screens/PastSpendingSuggestionScreen';
+import CurrencyChangeScreen from './src/components/Screens/CurrencyChangeScreen';
+import FAQScreen from './src/components/Screens/FAQScreen';
 
 const Stack = createStackNavigator();
 
@@ -56,9 +63,9 @@ const App = () => {
   }, []);
 
   return (
-    <AccessibilityProvider>
-      <CurrencyProvider>
-        <LanguageProvider>
+    <LanguageProvider>
+      <AccessibilityProvider>
+        <CurrencyProvider>
           <NavigationContainer>
             {isLoading ? (
               <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -66,17 +73,20 @@ const App = () => {
               </Stack.Navigator>
             ) : isLoggedIn ? (
               <Stack.Navigator screenOptions={{ headerShown: false }}>
-                {/* Main Drawer */}
                 <Stack.Screen name="DrawerNavigator">
                   {props => <DrawerNavigator {...props} setIsLoggedIn={setIsLoggedIn} userId={userId} />}
                 </Stack.Screen>
-
-                {/* Other Screens */}
+                <Stack.Screen name="LanguageChangeScreen" component={LanguageChangeScreen} options={{ headerShown: true }} />
                 <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: true }} />
                 <Stack.Screen name="LogoutScreen">
                   {props => <LogoutScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
                 </Stack.Screen>
+                <Stack.Screen name="FAQScreen" component={FAQScreen} options={{ headerShown: true }} />
+                <Stack.Screen name="CurrencyChangeScreen" component={CurrencyChangeScreen} options={{ headerShown: true }} />
+                <Stack.Screen name="GoalScreen" component={GoalScreen} />
+                <Stack.Screen name="PastSpendingSuggestionScreen" component={PastSpendingSuggestionScreen} />
                 <Stack.Screen name="ReminderScreen" component={NotificationScreen} options={{ headerShown: true }} />
+                <Stack.Screen name="Accessibility" component={Accessibility} options={{ headerShown: true }} />
               </Stack.Navigator>
             ) : (
               <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -89,9 +99,9 @@ const App = () => {
             )}
             <Toast />
           </NavigationContainer>
-        </LanguageProvider>
-      </CurrencyProvider>
-    </AccessibilityProvider>
+        </CurrencyProvider>
+      </AccessibilityProvider>
+    </LanguageProvider>
   );
 };
 

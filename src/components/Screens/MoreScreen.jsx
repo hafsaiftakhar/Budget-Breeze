@@ -105,7 +105,6 @@ const translations = {
   },
 };
 
-
 const MoreScreen = ({ navigation }) => {
   const { language } = useContext(LanguageContext);
   const { accessibilityMode } = useAccessibility(); // ✅ check accessibility
@@ -129,17 +128,14 @@ const MoreScreen = ({ navigation }) => {
   ];
 
   const otherSettings = [
-   
-  {
-    key: "past_spending",
-    icon: "chart-pie",
-    title: t.pastSpending,
-    description: t.pastSpendingDesc,
-    screen: "PastSpendingSuggestionScreen",
-  },
-];
-
-  
+    {
+      key: "past_spending",
+      icon: "chart-pie",
+      title: t.pastSpending,
+      description: t.pastSpendingDesc,
+      screen: "PastSpendingSuggestionScreen",
+    },
+  ];
 
   const privacySecuritySettings = [
     {
@@ -165,11 +161,12 @@ const MoreScreen = ({ navigation }) => {
     if (screen) navigation.navigate(screen);
   };
 
-  // ✅ Conditional wrapper for speaking
-  const SpeakWrapper = ({ title, onPress, children }) => {
+  // ✅ Speak wrapper supports multilingual text
+  const SpeakWrapper = ({ title, description, onPress, children }) => {
+    const textToSpeak = description ? `${title}. ${description}` : title;
     if (accessibilityMode) {
       return (
-        <SpeakOnPress textToSpeak={title} onPress={onPress}>
+        <SpeakOnPress textToSpeak={textToSpeak} onPress={onPress}>
           {children}
         </SpeakOnPress>
       );
@@ -179,7 +176,11 @@ const MoreScreen = ({ navigation }) => {
   };
 
   const renderFeature = ({ item }) => (
-    <SpeakWrapper title={item.title} onPress={() => handlePress(item.screen)}>
+    <SpeakWrapper
+      title={item.title}
+      description={item.description} // ✅ pass description for speech
+      onPress={() => handlePress(item.screen)}
+    >
       <FeatureItem
         icon={item.icon}
         title={item.title}

@@ -1,45 +1,68 @@
-import React, { useState, useEffect } from "react";
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
-import { createStackNavigator } from "@react-navigation/stack";
+import React, { useEffect, useState } from "react";
+import { createDrawerNavigator, DrawerContentScrollView } from "@react-navigation/drawer";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useTheme } from "./ThemeContext"; // ✅ Ensure Correct Import
 
-import LandingPage from "./LandingPage";
-import LoginScreen from "./LoginScreen";
-import SignupScreen from "./SignupScreen";
-import DrawerNavigator from "./DrawerNavigator";
+import BottomTabs from "./BottomTabs";
 import ChangePasswordScreen from "./ChangePasswordScreen";
+import Accessibility from "./Accessibility";
 
-const Stack = createStackNavigator();
+const Drawer = createDrawerNavigator();
 
-const MainStack = () => {
-  const { theme } = useTheme(); // ✅ Get theme from context
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      const token = await AsyncStorage.getItem("userToken"); // Token store karna hoga login ke time
-      setIsLoggedIn(!!token);
-    };
-    checkLoginStatus();
-  }, []);
-
+// Custom drawer content for 3 lines
+const CustomDrawerContent = ({ navigation, setIsLoggedIn }) => {
   return (
-    <NavigationContainer theme={theme === "dark" ? DarkTheme : DefaultTheme}>
-      {isLoggedIn ? (
-        <DrawerNavigator />
-      ) : (
-        <Stack.Navigator initialRouteName="LandingPage">
-          <Stack.Screen name="LandingPage" component={LandingPage} options={{ headerShown: false }} />
-          <Stack.Screen name="Login">
-            {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
-          </Stack.Screen>
-          <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: true }} />
-        </Stack.Navigator>
-      )}
-    </NavigationContainer>
+    <DrawerContentScrollView contentContainerStyle={{ flex: 1 }}>
+      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate("ChangePassword")}>
+        <Text style={styles.text}>Change Password</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate("Accessibility")}>
+        <Text style={styles.text}>Accessibility Mode</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.item}
+        onPress={async () => {
+          await AsyncStorage.removeItem("user_id");
+          setIsLoggedIn(false); // logout
+        }}
+      >
+        <Text style={styles.text}>Logout</Text>
+      </TouchableOpacity>
+    </DrawerContentScrollView>
   );
 };
 
-export default MainStack;
+const DrawerNavigator = ({ setIsLoggedIn }) => {
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      if (storedUserId) setUserId(storedUserId);
+    };
+    loadUser();
+  }, []);
+
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <CustomDrawerContent {...props} setIsLoggedIn={setIsLoggedIn} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Drawer.Screen name="Home">
+        {(props) => <BottomTabs {...props} userId={userId} />}
+      </Drawer.Screen>
+
+      <Drawer.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: true }} />
+      <Drawer.Screen name="Accessibility" component={Accessibility} options={{ headerShown: true }} />
+    </Drawer.Navigator>
+  );
+};
+
+const styles = StyleSheet.create({
+  item: { padding: 20, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  text: { fontSize: 16, fontWeight: "bold" },
+});
+
+export default DrawerNavigator;
