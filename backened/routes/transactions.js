@@ -2,28 +2,33 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
-// ✅ Ensure table exists
+// ---------------------------
+// Ensure table exists (without DROP)
+// ---------------------------
 db.run(`
   CREATE TABLE IF NOT EXISTS record (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT NOT NULL,
     amount REAL NOT NULL,
     category TEXT NOT NULL,
-    date TEXT NOT NULL
+    date TEXT NOT NULL,
+    user_id TEXT NOT NULL
   )
 `);
 
+// ---------------------------
 // POST /transactions - Create a new transaction
+// ---------------------------
 router.post('/', (req, res) => {
-  const { type, amount, category } = req.body;
+  const { type, amount, category, user_id } = req.body;
 
-  if (!type || !amount || !category) {
-    return res.status(400).json({ error: 'Type, amount, and category are required' });
+  if (!type || !amount || !category || !user_id) {
+    return res.status(400).json({ error: 'Type, amount, category, and user_id are required' });
   }
 
-  const query = `INSERT INTO record (type, amount, category, date) VALUES (?, ?, ?, date('now'))`;
+  const query = `INSERT INTO record (type, amount, category, date, user_id) VALUES (?, ?, ?, date('now'), ?)`;
 
-  db.run(query, [type, amount, category], function (error) {
+  db.run(query, [type, amount, category, user_id], function (error) {
     if (error) {
       console.error('❌ Error inserting transaction:', error);
       return res.status(500).json({ error: 'Database insert failed' });
@@ -33,11 +38,17 @@ router.post('/', (req, res) => {
   });
 });
 
-// GET /transactions - Get all transactions
+// ---------------------------
+// GET /transactions - Get all transactions for a user
+// ---------------------------
 router.get('/', (req, res) => {
-  const query = `SELECT * FROM record ORDER BY date DESC`;
+  const userId = req.query.user_id; // consistent naming
 
-  db.all(query, [], (error, results) => {
+  if (!userId) return res.status(400).json({ error: 'User ID is required' });
+
+  const query = `SELECT * FROM record WHERE user_id = ? ORDER BY date DESC`;
+
+  db.all(query, [userId], (error, results) => {
     if (error) {
       console.error('❌ Error fetching transactions:', error);
       return res.status(500).json({ error: 'Failed to retrieve transactions' });
@@ -47,46 +58,51 @@ router.get('/', (req, res) => {
   });
 });
 
+// ---------------------------
 // PUT /transactions/:id - Update a transaction
+// ---------------------------
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { amount, category, type } = req.body;
+  const { type, amount, category, user_id } = req.body;
 
-  if (!amount || !category || !type) {
-    return res.status(400).json({ error: 'Amount, category, and type are required' });
+  if (!type || !amount || !category || !user_id) {
+    return res.status(400).json({ error: 'Type, amount, category, and user_id are required' });
   }
 
-  const query = `UPDATE record SET amount = ?, category = ?, type = ? WHERE id = ?`;
+  const query = `UPDATE record SET type = ?, amount = ?, category = ? WHERE id = ? AND user_id = ?`;
 
-  db.run(query, [amount, category, type, id], function (err) {
+  db.run(query, [type, amount, category, id, user_id], function (err) {
     if (err) {
       console.error('❌ Error updating transaction:', err);
       return res.status(500).json({ error: 'Database error' });
     }
     if (this.changes === 0) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      return res.status(404).json({ error: 'Transaction not found or not yours' });
     }
-    res.json({ message: 'Transaction updated' });
+    res.json({ message: 'Transaction updated successfully' });
   });
 });
 
+// ---------------------------
 // DELETE /transactions/:id - Delete a transaction
+// ---------------------------
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
-  console.log('🗑 Delete request received for ID:', id);
+  const user_id = req.query.user_id || req.body.user_id; // support both query or body
 
-  const query = `DELETE FROM record WHERE id = ?`;
+  if (!user_id) return res.status(400).json({ error: 'User ID is required' });
 
-  db.run(query, [id], function (error) {
+  const query = `DELETE FROM record WHERE id = ? AND user_id = ?`;
+
+  db.run(query, [id, user_id], function (error) {
     if (error) {
       console.error('❌ Error deleting transaction:', error);
       return res.status(500).json({ error: 'Failed to delete transaction' });
     }
     if (this.changes === 0) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      return res.status(404).json({ error: 'Transaction not found or not yours' });
     }
 
-    console.log('✅ Delete result:', this);
     res.json({ message: 'Transaction deleted successfully' });
   });
 });

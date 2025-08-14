@@ -11,7 +11,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Circle, Svg } from 'react-native-svg';
 import { LanguageContext } from './LanguageContext'; // adjust path accordingly
 import { CurrencyContext } from './CurrencyContext'; // Adjust path if needed
- 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 
 const FILTERS = ['Daily', 'Weekly', 'Monthly'];
@@ -47,22 +48,22 @@ const translations = {
     errorSavingBudget: "Error saving budget",
     categoryDeleted: "Category deleted for today",
     failedDeleteCategory: "Failed to delete category",
-          Beauty: "Beauty",
-      Clothing: "Clothing",
-      Education: "Education",
-      Electronics: "Electronics",
-      Entertainment: "Entertainment",
-      Food: "Food",
-      Health: "Health",
-      Home: "Home",
-      Insurance: "Insurance",
-      Shopping: "Shopping",
-      Social: "Social",
-      Sport: "Sport",
-      Tax: "Tax",
-      "Mobile Phone": "Mobile Phone",
-      Transportation: "Transportation",
-      
+    Beauty: "Beauty",
+    Clothing: "Clothing",
+    Education: "Education",
+    Electronics: "Electronics",
+    Entertainment: "Entertainment",
+    Food: "Food",
+    Health: "Health",
+    Home: "Home",
+    Insurance: "Insurance",
+    Shopping: "Shopping",
+    Social: "Social",
+    Sport: "Sport",
+    Tax: "Tax",
+    "Mobile Phone": "Mobile Phone",
+    Transportation: "Transportation",
+
   },
   ur: {
     budgetOverview: "بجٹ کا جائزہ",
@@ -92,21 +93,21 @@ const translations = {
     errorSavingBudget: "بجٹ محفوظ کرنے میں خرابی",
     categoryDeleted: "آج کے لیے زمرہ حذف کردیا گیا",
     failedDeleteCategory: "زمرہ حذف کرنے میں ناکامی",
-     Beauty: "خوبصورتی",
-      Clothing: "کپڑے",
-      Education: "تعلیم",
-      Electronics: "الیکٹرانکس",
-      Entertainment: "تفریح",
-      Food: "خوراک",
-      Health: "صحت",
-      Home: "گھر",
-      Insurance: "انشورنس",
-      Shopping: "خریداری",
-      Social: "سماجی",
-      Sport: "کھیل",
-      Tax: "ٹیکس",
-      "Mobile Phone": "موبائل فون",
-      Transportation: "ٹرانسپورٹیشن",
+    Beauty: "خوبصورتی",
+    Clothing: "کپڑے",
+    Education: "تعلیم",
+    Electronics: "الیکٹرانکس",
+    Entertainment: "تفریح",
+    Food: "خوراک",
+    Health: "صحت",
+    Home: "گھر",
+    Insurance: "انشورنس",
+    Shopping: "خریداری",
+    Social: "سماجی",
+    Sport: "کھیل",
+    Tax: "ٹیکس",
+    "Mobile Phone": "موبائل فون",
+    Transportation: "ٹرانسپورٹیشن",
   },
   ar: {
     budgetOverview: "نظرة عامة على الميزانية",
@@ -136,21 +137,21 @@ const translations = {
     errorSavingBudget: "خطأ في حفظ الميزانية",
     categoryDeleted: "تم حذف الفئة لليوم",
     failedDeleteCategory: "فشل في حذف الفئة",
-     Beauty: "الجمال",
-      Clothing: "الملابس",
-      Education: "التعليم",
-      Electronics: "الإلكترونيات",
-      Entertainment: "الترفيه",
-      Food: "الطعام",
-      Health: "الصحة",
-      Home: "المنزل",
-      Insurance: "التأمين",
-      Shopping: "التسوق",
-      Social: "اجتماعي",
-      Sport: "الرياضة",
-      Tax: "الضرائب",
-      "Mobile Phone": "الهاتف المحمول",
-      Transportation: "النقل",
+    Beauty: "الجمال",
+    Clothing: "الملابس",
+    Education: "التعليم",
+    Electronics: "الإلكترونيات",
+    Entertainment: "الترفيه",
+    Food: "الطعام",
+    Health: "الصحة",
+    Home: "المنزل",
+    Insurance: "التأمين",
+    Shopping: "التسوق",
+    Social: "اجتماعي",
+    Sport: "الرياضة",
+    Tax: "الضرائب",
+    "Mobile Phone": "الهاتف المحمول",
+    Transportation: "النقل",
   },
   fr: {
     budgetOverview: "Aperçu du budget",
@@ -180,21 +181,21 @@ const translations = {
     errorSavingBudget: "Erreur lors de l'enregistrement du budget",
     categoryDeleted: "Catégorie supprimée pour aujourd'hui",
     failedDeleteCategory: "Échec de la suppression de la catégorie",
-     Beauty: "Beauté",
-      Clothing: "Vêtements",
-      Education: "Éducation",
-      Electronics: "Électronique",
-      Entertainment: "Divertissement",
-      Food: "Nourriture",
-      Health: "Santé",
-      Home: "Maison",
-      Insurance: "Assurance",
-      Shopping: "Shopping",
-      Social: "Social",
-      Sport: "Sport",
-      Tax: "Impôt",
-      "Mobile Phone": "Téléphone portable",
-      Transportation: "Transport",
+    Beauty: "Beauté",
+    Clothing: "Vêtements",
+    Education: "Éducation",
+    Electronics: "Électronique",
+    Entertainment: "Divertissement",
+    Food: "Nourriture",
+    Health: "Santé",
+    Home: "Maison",
+    Insurance: "Assurance",
+    Shopping: "Shopping",
+    Social: "Social",
+    Sport: "Sport",
+    Tax: "Impôt",
+    "Mobile Phone": "Téléphone portable",
+    Transportation: "Transport",
   },
   es: {
     budgetOverview: "Resumen del presupuesto",
@@ -225,20 +226,20 @@ const translations = {
     categoryDeleted: "Categoría eliminada para hoy",
     failedDeleteCategory: "Error al eliminar la categoría",
     Beauty: "Belleza",
-      Clothing: "Ropa",
-      Education: "Educación",
-      Electronics: "Electrónica",
-      Entertainment: "Entretenimiento",
-      Food: "Comida",
-      Health: "Salud",
-      Home: "Hogar",
-      Insurance: "Seguro",
-      Shopping: "Compras",
-      Social: "Social",
-      Sport: "Deporte",
-      Tax: "Impuesto",
-      "Mobile Phone": "Teléfono móvil",
-      Transportation: "Transporte",
+    Clothing: "Ropa",
+    Education: "Educación",
+    Electronics: "Electrónica",
+    Entertainment: "Entretenimiento",
+    Food: "Comida",
+    Health: "Salud",
+    Home: "Hogar",
+    Insurance: "Seguro",
+    Shopping: "Compras",
+    Social: "Social",
+    Sport: "Deporte",
+    Tax: "Impuesto",
+    "Mobile Phone": "Teléfono móvil",
+    Transportation: "Transporte",
   },
 };
 
@@ -288,7 +289,7 @@ function CircularProgress({ progress, color, size = 120, strokeWidth = 12 }) {
         strokeDashoffset={strokeDashoffset}
         strokeLinecap="round"
         rotation="-90"
-origin={{ x: size / 2, y: size / 2 }}
+        origin={{ x: size / 2, y: size / 2 }}
       />
       <Text
         style={{
@@ -334,11 +335,11 @@ function BudgetRing({ totalSpent, totalBudget, t, currency }) {
             ]}
           />
           <Text style={styles.legendText}>
-  {isOverBudget
-    ? `${t.overBudget}: ${currencySymbol}${Math.abs(remaining).toFixed(2)}`
-    : `${t.left}: ${currencySymbol}${remaining.toFixed(2)}`
-  }
-</Text>
+            {isOverBudget
+              ? `${t.overBudget}: ${currencySymbol}${Math.abs(remaining).toFixed(2)}`
+              : `${t.left}: ${currencySymbol}${remaining.toFixed(2)}`
+            }
+          </Text>
 
         </View>
         <View style={styles.legendItem}>
@@ -354,7 +355,7 @@ function BudgetRing({ totalSpent, totalBudget, t, currency }) {
 
 
 
-export default function BudgetScreen() {
+export default function BudgetScreen({ userId }) {
   const { language } = useContext(LanguageContext);
   const t = translations[language] || translations.en;
 
@@ -378,116 +379,133 @@ export default function BudgetScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchBudget();
-      fetchCategoriesFromBackend();
-    }, [selectedFilter])
+      if (userId) {
+        fetchBudget();
+        fetchCategoriesFromBackend();
+      } else {
+        console.log("User ID missing. Cannot fetch budget.");
+      }
+    }, [selectedFilter, userId])
   );
 
- 
+
 
 
   const fetchBudget = async () => {
-  try {
-    let url = `http://192.168.100.8:3033/api/budgets/data?filter=${selectedFilter.toLowerCase()}`;
+    try {
+      // 1️⃣ AsyncStorage se userId le aao
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        console.log('User ID missing. Cannot fetch budget.');
+        return;
+      }
 
-    if (selectedFilter === 'Weekly') {
-      const startOfWeek = moment().startOf('isoWeek');
-      const endOfWeek = moment().endOf('isoWeek');
-      const endOfMonth = moment().endOf('month');
-      const adjustedEndOfWeek = endOfWeek.isAfter(endOfMonth) ? endOfMonth : endOfWeek;
-      url += '&startDate=' + startOfWeek.format('YYYY-MM-DD') + "&endDate=" + adjustedEndOfWeek.format('YYYY-MM-DD');
+      // 2️⃣ Base URL banaye userId ke sath
+      let url = `http://192.168.100.8:3033/api/budgets/data?filter=${selectedFilter.toLowerCase()}&userId=${userId}`;
+
+      // 3️⃣ Filters handle karo
+      if (selectedFilter === 'Weekly') {
+        const startOfWeek = moment().startOf('isoWeek');
+        const endOfWeek = moment().endOf('isoWeek');
+        const endOfMonth = moment().endOf('month');
+        const adjustedEndOfWeek = endOfWeek.isAfter(endOfMonth) ? endOfMonth : endOfWeek;
+        url += `&startDate=${startOfWeek.format('YYYY-MM-DD')}&endDate=${adjustedEndOfWeek.format('YYYY-MM-DD')}`;
+      }
+
+      if (selectedFilter === 'Daily') {
+        const today = moment().format('YYYY-MM-DD');
+        url += `&date=${today}`;
+      }
+
+      if (selectedFilter === 'Monthly') {
+        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+        const endOfMonth = moment().endOf('month').format('YYYY-MM-DD');
+        url += `&startDate=${startOfMonth}&endDate=${endOfMonth}`;
+      }
+
+      // 4️⃣ Expenses URL bhi userId ke sath
+      const spentUrl = `http://192.168.18.254:3033/api/budgets/expense-per-category?filter=${selectedFilter.toLowerCase()}&userId=${userId}`;
+
+      // 5️⃣ Parallel fetch
+      const [budgetRes, spentRes] = await Promise.all([
+        axios.get(url),
+        axios.get(spentUrl)
+      ]);
+
+      const budgetArray = budgetRes.data.budgets || [];
+      const spentMap = {};
+      (spentRes.data.spentPerCategory || []).forEach(item => {
+        spentMap[item.category] = item.spent;
+      });
+
+      const merged = budgetArray.map(item => ({
+        ...item,
+        spent: spentMap[item.category] || 0
+      }));
+
+      setBudgetData(merged);
+    } catch (err) {
+      console.log('Error fetching budget or spent data:', err);
     }
+  };
 
-    if (selectedFilter === 'Daily') {
-      const today = moment().format('YYYY-MM-DD');
-      url += `&date=${today}`;
-    }
 
-    if (selectedFilter === 'Monthly') {
-      const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-      const endOfMonth = moment().endOf('month').format('YYYY-MM-DD');
-      url += `&startDate=${startOfMonth}&endDate=${endOfMonth}`;
-    }
-
-    const spentUrl = `http://192.168.100.8:3033/api/budgets/expense-per-category?filter=${selectedFilter.toLowerCase()}`;
-
-    const [budgetRes, spentRes] = await Promise.all([
-      axios.get(url),
-      axios.get(spentUrl)
-    ]);
-
-    const budgetArray = budgetRes.data.budgets || [];
-    const spentMap = {};
-    (spentRes.data.spentPerCategory || []).forEach(item => {
-      spentMap[item.category] = item.spent;
-    });
-
-    const merged = budgetArray.map(item => ({
-      ...item,
-      spent: spentMap[item.category] || 0
-    }));
-
-    setBudgetData(merged);
-  } catch (err) {
-    console.log('Error fetching budget or spent data:', err);
-  }
-};
 
   const fetchCategoriesFromBackend = async () => {
-  try {
-    const res = await axios.get('http://192.168.100.8:3033/api/budgets/categories'); // <-- Corrected URL
+    try {
+      const res = await axios.get('http://192.168.18.254:3033/api/budgets/categories'); // <-- Corrected URL
 
-    if (res.data.categories && res.data.categories.length > 0) {
-      const updatedCategories = res.data.categories.map(catName => {
-        const found = initialCategories.find(
-          c => c.name.toLowerCase() === catName.toLowerCase()
-        );
-        return found
-          ? { ...found }
-          : { icon: 'folder', name: catName, budget: 0, spent: 0, color: '#777' };
-      });
-      setCategories(updatedCategories);
-    } else {
+      if (res.data.categories && res.data.categories.length > 0) {
+        const updatedCategories = res.data.categories.map(catName => {
+          const found = initialCategories.find(
+            c => c.name.toLowerCase() === catName.toLowerCase()
+          );
+          return found
+            ? { ...found }
+            : { icon: 'folder', name: catName, budget: 0, spent: 0, color: '#777' };
+        });
+        setCategories(updatedCategories);
+      } else {
+        setCategories(initialCategories);
+      }
+    } catch (err) {
+      console.log('Error fetching categories:', err);
       setCategories(initialCategories);
     }
-  } catch (err) {
-    console.log('Error fetching categories:', err);
-    setCategories(initialCategories);
-  }
-};
+  };
 
-  
+
   const handleSaveBudget = async () => {
-  const category = newCategoryModal ? newCategoryName.trim() : (selectedCategory?.name || selectedCategory);
-  if (!category) return alert(t.selectOrEnterCategory);
-  if (!budgetAmount || isNaN(budgetAmount) || Number(budgetAmount) <= 0) {
-    return alert(t.enterValidAmount);
-  }
+    const category = newCategoryModal ? newCategoryName.trim() : (selectedCategory?.name || selectedCategory);
+    if (!category) return alert(t.selectOrEnterCategory);
+    if (!budgetAmount || isNaN(budgetAmount) || Number(budgetAmount) <= 0) {
+      return alert(t.enterValidAmount);
+    }
 
-  try {
-    await axios.post('http://192.168.100.8:3033/api/budgets/save-budget', {
-      category,
-      amount: Number(budgetAmount) / currency.rate,
-    });
-    alert(t.budgetSaved);
-    setBudgetAmount('');
-    setSelectedCategory(null);
-    setNewCategoryName('');
-    setModalVisible(false);
-    setNewCategoryModal(false);
-    fetchBudget();
-    fetchCategoriesFromBackend();
-  } catch (err) {
-    alert(t.errorSavingBudget);
-    console.error('Save budget error:', err.response?.data || err.message);
-  }
-};
+    try {
+      await axios.post('http://192.168.18.254:3033/api/budgets/save-budget', {
+        category,
+        amount: Number(budgetAmount) / currency.rate,
+      });
+      alert(t.budgetSaved);
+      setBudgetAmount('');
+      setSelectedCategory(null);
+      setNewCategoryName('');
+      setModalVisible(false);
+      setNewCategoryModal(false);
+      fetchBudget();
+      fetchCategoriesFromBackend();
+    } catch (err) {
+      alert(t.errorSavingBudget);
+      console.error('Save budget error:', err.response?.data || err.message);
+    }
+  };
 
   const handleDeleteCategory = async (categoryName) => {
     try {
-     await axios.delete('http://192.168.100.8:3033/api/budgets/delete-category', {
-  data: { category: categoryName }
-});
+      await axios.delete('http://192.168.18.254:3033/api/budgets/delete-category', {
+        data: { category: categoryName }
+      });
 
       alert(t.categoryDeleted);
       fetchBudget();
@@ -508,7 +526,7 @@ export default function BudgetScreen() {
       const adjustedEndOfWeek = endOfWeek.isAfter(endOfMonth) ? endOfMonth : endOfWeek;
       const startFormat = startOfWeek.format('D MMM');
       const endFormat = adjustedEndOfWeek.format('D MMM YYYY');
-return `${startFormat} - ${endFormat}`;
+      return `${startFormat} - ${endFormat}`;
     }
     if (selectedFilter === 'Monthly') return now.format('MMMM YYYY');
   };
@@ -522,7 +540,7 @@ return `${startFormat} - ${endFormat}`;
     </TouchableOpacity>
   );
 
- const renderBudgetItem = ({ item }) => {
+  const renderBudgetItem = ({ item }) => {
     const isExpanded = expandedCategory === item.category;
 
     const itemAmount = Number(item.amount) * currency.rate;
@@ -570,29 +588,29 @@ return `${startFormat} - ${endFormat}`;
       </Swipeable>
     );
   };
-const renderCategoryCard = ({ item }) => (
-  <View style={styles.categoryCard}>
-    <TouchableOpacity
-      onPress={() => {
-        console.log("Selected Category:", item);
-        setSelectedCategory(item);
-        setBudgetAmount('');
-        setModalVisible(true);
-        setNewCategoryModal(false);
-      }}
-      style={[
-        styles.categoryButton,
-        selectedCategory?.name === item.name && styles.categoryButtonSelected,
-      ]}
-    >
-      <Ionicons name={item.icon} size={24} color={item.color} />
-      <Text style={styles.categoryName}>{t[item.name] || item.name}</Text>
+  const renderCategoryCard = ({ item }) => (
+    <View style={styles.categoryCard}>
+      <TouchableOpacity
+        onPress={() => {
+          console.log("Selected Category:", item);
+          setSelectedCategory(item);
+          setBudgetAmount('');
+          setModalVisible(true);
+          setNewCategoryModal(false);
+        }}
+        style={[
+          styles.categoryButton,
+          selectedCategory?.name === item.name && styles.categoryButtonSelected,
+        ]}
+      >
+        <Ionicons name={item.icon} size={24} color={item.color} />
+        <Text style={styles.categoryName}>{t[item.name] || item.name}</Text>
 
-    </TouchableOpacity>
-  </View>
-);
+      </TouchableOpacity>
+    </View>
+  );
 
-   return (
+  return (
     <View style={styles.container}>
       <BudgetRing totalSpent={totalSpent} totalBudget={totalBudget} t={t} currency={currency} />
 
@@ -657,10 +675,10 @@ const renderCategoryCard = ({ item }) => (
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>
-{newCategoryModal 
-  ? t.addNewCategoryTitle 
-  : `${t.addBudgetFor} ${selectedCategory?.name || ''}`
-}
+              {newCategoryModal
+                ? t.addNewCategoryTitle
+                : `${t.addBudgetFor} ${selectedCategory?.name || ''}`
+              }
             </Text>
 
             {newCategoryModal ? (

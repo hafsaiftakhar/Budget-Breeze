@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 
-const OTPVerification= ({ route, navigation }) => {
+const OTPVerification = ({ route, navigation }) => {
   const { email, from } = route.params; // get email and from flag
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputs = useRef([]);

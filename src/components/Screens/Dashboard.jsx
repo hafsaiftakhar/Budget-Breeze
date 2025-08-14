@@ -8,6 +8,8 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import axios from 'axios';
 import moment from 'moment';
 import { PieChart } from 'react-native-chart-kit';
@@ -19,8 +21,8 @@ import { useAccessibility } from './AccessibilityContext';  // accessibility con
 
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 
-import { CurrencyContext } from './CurrencyContext'; 
-import { LanguageContext } from './LanguageContext'; 
+import { CurrencyContext } from './CurrencyContext';
+import { LanguageContext } from './LanguageContext';
 
 const screenWidth = Dimensions.get('window').width;
 const CATEGORY_COLORS = ['#f39c12', '#e74c3c', '#8e44ad', '#2ecc71', '#3498db', '#1abc9c', '#d35400', '#c0392b', '#9b59b6', '#27ae60'];
@@ -247,7 +249,7 @@ const DashboardScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
 
-  const { recentExpense } = route.params || {};
+  const { recentExpense, userId } = route.params || {};  // single line, userId bhi le lo
 
   const [selectedFilter, setSelectedFilter] = useState(t.daily);
   const [transactions, setTransactions] = useState([]);
@@ -263,6 +265,19 @@ const DashboardScreen = () => {
     }, [selectedFilter, language])
   );
 
+  useEffect(() => {
+    const loadUserData = async () => {
+      const data = await AsyncStorage.getItem("userData");
+      if (data) {
+        const user = JSON.parse(data);
+        setUserId(user.id); // Save in state
+        fetchBudget(user.id); // Pass userId to API
+      } else {
+        console.log("No user found, please login");
+      }
+    };
+    loadUserData();
+  }, []);
 
 
 
@@ -285,30 +300,58 @@ const DashboardScreen = () => {
     [translations.es.monthly]: 'Monthly',
   };
 
-const fetchTransactions = async () => {
-  try {
-    const res = await axios.get('http://192.168.100.8:3033/transactions');
-    setTransactions(res.data);
-    assignColors(res.data);
-  } catch (err) {
-    console.error('Online fetch error:', err);
-  }
-};
+  const fetchTransactions = async () => {
+    try {
+      // AsyncStorage se user ID lo
+      const userId = await AsyncStorage.getItem('userId');
+
+      if (!userId) {
+        console.error('User ID missing. Cannot fetch transactions.');
+        return;
+      }
+
+      // API call me userId pass karo
+      const res = await axios.get(`http://192.168.100.8:3033/transactions`, {
+        params: { userId }
+      });
+
+      setTransactions(res.data);
+      assignColors(res.data);
+    } catch (err) {
+      console.error('Online fetch error:', err);
+    }
+  };
 
 
+  const fetchBudget = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('userData');
+      if (!userData) {
+        console.error("User not logged in");
+        return;
+      }
 
-const fetchBudget = async () => {
-  try {
-    const today = moment().format('YYYY-MM-DD');
-    const filterEnglish = filterKeyMap[selectedFilter] || 'Daily';
-    const res = await axios.get(`http://192.168.100.8:3033/api/budgets/data?filter=${filterEnglish.toLowerCase()}&date=${today}`);
-    const total = (res.data.budgets || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    setBudgetTotal(total);
-  } catch (err) {
-    console.error('Budget fetch error:', err);
-  }
-};
+      const { id } = JSON.parse(userData); // 👈 yahan tumhara userId hai
+      if (!id) {
+        console.error("User ID missing");
+        return;
+      }
 
+      const today = moment().format('YYYY-MM-DD');
+      const filterEnglish = filterKeyMap[selectedFilter] || 'Daily';
+      const res = await axios.get(
+        `http://192.168.100.8:3033/api/budgets/data?userId=${id}&filter=${filterEnglish.toLowerCase()}&date=${today}`
+      );
+
+      const total = (res.data.budgets || []).reduce(
+        (sum, item) => sum + Number(item.amount || 0),
+        0
+      );
+      setBudgetTotal(total);
+    } catch (err) {
+      console.error('Budget fetch error:', err);
+    }
+  };
 
   const assignColors = (txns) => {
     const uniqueCategories = Array.from(new Set(txns.map(t => t.category)));
@@ -365,17 +408,17 @@ const fetchBudget = async () => {
     }));
   };
 
-const getGroupedTransactions = () => {
-  const expenses = getFilteredTransactions().filter((t) => t.type === 'expense');
-  const grouped = {};
-  expenses.forEach((item) => {
-    if (!grouped[item.category]) grouped[item.category] = [];
-    grouped[item.category].push({ ...item, color: categoryColorMap[item.category] || '#ccc' });
-  });
-  return grouped;
-  
+  const getGroupedTransactions = () => {
+    const expenses = getFilteredTransactions().filter((t) => t.type === 'expense');
+    const grouped = {};
+    expenses.forEach((item) => {
+      if (!grouped[item.category]) grouped[item.category] = [];
+      grouped[item.category].push({ ...item, color: categoryColorMap[item.category] || '#ccc' });
+    });
+    return grouped;
 
-};
+
+  };
 
 
 
@@ -401,22 +444,34 @@ const getGroupedTransactions = () => {
   };
 
   const handleDelete = (transaction) => {
-    Alert.alert(t.expenseBreakdown, `Delete transaction for ${categoryTranslations[language]?.[transaction.category] || transaction.category}?`, [
-      { text: t.settings, style: 'cancel' },
-      {
-        text: t.expenseBreakdown,
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await axios.delete(`http://192.168.100.8:3033/transactions/${transaction.id}`);
-            fetchTransactions();
-          } catch (err) {
-            console.error('Delete error:', err);
-          }
+    Alert.alert(
+      t.expenseBreakdown,
+      `Delete transaction for ${categoryTranslations[language]?.[transaction.category] || transaction.category}?`,
+      [
+        { text: t.settings, style: 'cancel' },
+        {
+          text: t.expenseBreakdown,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const userData = await AsyncStorage.getItem('user');
+              if (!userData) {
+                console.error('User ID missing. Cannot delete transaction.');
+                return;
+              }
+              const { id: userId } = JSON.parse(userData);
+
+              await axios.delete(`http://192.168.100.8:3033/transactions/${transaction.id}?userId=${userId}`);
+              fetchTransactions();
+            } catch (err) {
+              console.error('Delete error:', err);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
+
 
   const income = getTotal('income');
   const expense = getTotal('expense');
@@ -437,46 +492,46 @@ const getGroupedTransactions = () => {
     }
   }, [expense, income, t.warningExpensesExceedIncome]);
 
-const pieChartData = getExpenseBreakdown();
+  const pieChartData = getExpenseBreakdown();
 
-const getLabel = (baseLabel) => {
-  if (baseLabel === t.totalBalance) return baseLabel;
-  return `${selectedFilter} ${baseLabel}`;
-};
+  const getLabel = (baseLabel) => {
+    if (baseLabel === t.totalBalance) return baseLabel;
+    return `${selectedFilter} ${baseLabel}`;
+  };
 
-return (
-  <Provider>
-    <ScrollView style={styles.container}>
-      <View style={styles.cardContainer}>
-        {[
-          { label: t.totalBalance, value: balance * currency.rate },
-          { label: t.income, value: income * currency.rate },
-          { label: t.expense, value: expense * currency.rate },
-          { label: t.budget, value: budgetTotal * currency.rate },
-        ].map((item, idx) => (
-          <View key={idx} style={styles.card}>
-            <Text style={styles.label}>{getLabel(item.label)}</Text>
-            <Text
-              style={[
-                styles.value,
-                item.label === t.totalBalance && item.value < 0
-                  ? { color: 'red', fontWeight: 'bold' }
-                  : null,
-              ]}
-            >
-              {currency.symbol}
-              {item.value.toFixed(2)}
-            </Text>
-            {item.label === t.totalBalance && item.value < 0 && (
-              <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 4, fontSize: 12 }}>
-               
+  return (
+    <Provider>
+      <ScrollView style={styles.container}>
+        <View style={styles.cardContainer}>
+          {[
+            { label: t.totalBalance, value: balance * currency.rate },
+            { label: t.income, value: income * currency.rate },
+            { label: t.expense, value: expense * currency.rate },
+            { label: t.budget, value: budgetTotal * currency.rate },
+          ].map((item, idx) => (
+            <View key={idx} style={styles.card}>
+              <Text style={styles.label}>{getLabel(item.label)}</Text>
+              <Text
+                style={[
+                  styles.value,
+                  item.label === t.totalBalance && item.value < 0
+                    ? { color: 'red', fontWeight: 'bold' }
+                    : null,
+                ]}
+              >
+                {currency.symbol}
+                {item.value.toFixed(2)}
               </Text>
-            )}
-          </View>
-        ))}
-      </View>
+              {item.label === t.totalBalance && item.value < 0 && (
+                <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 4, fontSize: 12 }}>
 
-     
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+
+
 
 
 
@@ -507,8 +562,8 @@ return (
                   <Ionicons name="ellipsis-vertical" size={20} color="black" />
                 </TouchableOpacity>
               }>
-              <Menu.Item title={t.export} onPress={() => {}} />
-              <Menu.Item title={t.settings} onPress={() => {}} />
+              <Menu.Item title={t.export} onPress={() => { }} />
+              <Menu.Item title={t.settings} onPress={() => { }} />
             </Menu>
           </View>
 

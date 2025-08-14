@@ -6,13 +6,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { LanguageContext } from "./LanguageContext";
-import { CurrencyContext } from './CurrencyContext'; 
+import { CurrencyContext } from './CurrencyContext';
 import { useAccessibility } from './AccessibilityContext';  // accessibility context ka path check karo
 import * as Speech from 'expo-speech';
 
 
 
-
+const baseUrl = 'http://192.168.100.8:3033/transactions';
 
 
 const translations = {
@@ -252,41 +252,69 @@ const initialCategories = {
   ],
 };
 
-export default function TransactionScreen() {
+
+
+
+export default function TransactionScreen({ route }) {
   const { language } = useContext(LanguageContext);
   const { currency } = useContext(CurrencyContext);
-   const { accessibilityMode } = useAccessibility();
+  const { accessibilityMode } = useAccessibility();
   const t = translations[language] || translations.en;
 
-  const route = useRoute();
-  const editTransaction = route.params;
+  const editTransaction = route.params || null;
 
+  const [userId, setUserId] = useState(null);
   const [type, setType] = useState('income');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categories, setCategories] = useState({ income: [], expense: [] });
+  const [transactions, setTransactions] = useState([]);
 
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  // Update categories when language changes
+  // Load user ID
+  useEffect(() => {
+    const loadUser = async () => {
+      const storedUserId = await AsyncStorage.getItem('user_id');
+      if (storedUserId) setUserId(storedUserId);
+      setLoadingUser(false);
+    };
+    loadUser();
+  }, []);
+
+  // Fetch transactions
+  useEffect(() => {
+    if (loadingUser || !userId) return;
+
+    const fetchTransactions = async () => {
+      try {
+        const res = await axios.get(`${baseUrl}?user_id=${userId}`);
+        setTransactions(res.data);
+      } catch (err) {
+        console.error('Fetch transactions error:', err.message);
+      }
+    };
+    fetchTransactions();
+  }, [loadingUser, userId]);
+
+  // Translate categories
   useEffect(() => {
     const translatedCategories = {
       income: initialCategories.income.map(cat => ({
-        icon: cat.icon,
-        key: cat.key,
+        ...cat,
         label: t[cat.key] || cat.key,
       })),
       expense: initialCategories.expense.map(cat => ({
-        icon: cat.icon,
-        key: cat.key,
+        ...cat,
         label: t[cat.key] || cat.key,
       })),
     };
     setCategories(translatedCategories);
   }, [language]);
 
-  // Prefill fields on edit
+  // Prefill if editing
   useEffect(() => {
     if (editTransaction) {
       setType(editTransaction.type || 'income');
@@ -295,96 +323,68 @@ export default function TransactionScreen() {
     }
   }, [editTransaction]);
 
-
-
-const saveTransaction = async () => {
-  if (!amount || !selectedCategory) {
-    alert(t.pleaseFill);
-    return;
-  }
-
-  const transactionData = {
-    type,
-    amount: parseFloat(amount),
-    category: selectedCategory,
-  };
-
-  try {
-    const baseUrl = 'http://192.168.100.8:3033/transactions';
-    let url = baseUrl;
-    const method = editTransaction && editTransaction.id ? 'PUT' : 'POST';
-
-    if (editTransaction && editTransaction.id) {
-      url = `${baseUrl}/${editTransaction.id}`;
-    }
-
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(transactionData),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      alert(`✅ Transaction ${editTransaction ? t.updateTransaction : t.saveTransaction} successfully!`);
-
-      if (accessibilityMode) {
-        Speech.speak(
-          `Transaction ${editTransaction ? t.updateTransaction : t.saveTransaction} successfully!`,
-          { language }
-        );
-      }
-
-      setAmount('');
-      setSelectedCategory(null);
-
-    } else {
-      alert('❌ ' + (data.error || 'Something went wrong'));
-    }
-  } catch (error) {
-    console.error(error);
-    alert('❌ Error: ' + error.message);
-  }
-};
-
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return;
-
-    // Generate a simple key from the new category name
     const newKey = newCategoryName.trim().toLowerCase().replace(/\s+/g, '');
-
-    const newCat = {
-      icon: 'add-circle-outline',
-      key: newKey,
-      label: newCategoryName.trim(),
-    };
-
-    setCategories(prev => ({
-      ...prev,
-      [type]: [...prev[type], newCat],
-    }));
+    const newCat = { icon: 'add-circle-outline', key: newKey, label: newCategoryName.trim() };
+    setCategories(prev => ({ ...prev, [type]: [...prev[type], newCat] }));
     setSelectedCategory(newKey);
     setNewCategoryName('');
     setModalVisible(false);
   };
 
-  const currencySymbol = currency.symbol || '₨';
+  const saveTransaction = async () => {
+    if (!userId) {
+      alert('User not logged in');
+      return;
+    }
+    if (!amount || !selectedCategory) {
+      alert(t.pleaseFill);
+      return;
+    }
+
+    const transactionData = {
+      type,
+      amount: parseFloat(amount),
+      category: selectedCategory,
+      user_id: userId,
+    };
+
+    try {
+      let url = baseUrl;
+      const method = editTransaction && editTransaction.id ? 'PUT' : 'POST';
+      if (editTransaction && editTransaction.id) url = `${baseUrl}/${editTransaction.id}`;
+
+      const response = await axios({ method, url, data: transactionData });
+      if (response.status === 200) {
+        const msg = editTransaction ? t.updateTransaction : t.saveTransaction;
+        alert(`✅ ${msg} successfully!`);
+        if (accessibilityMode) Speech.speak(`${msg} successfully!`, { language });
+
+        setAmount('');
+        setSelectedCategory(null);
+
+        const res = await axios.get(`${baseUrl}?user_id=${userId}`);
+        setTransactions(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ Error: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const currencySymbol = currency?.symbol || '₨';
 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
         <Text style={styles.heading}>{t.transactionType}</Text>
-
         <View style={styles.toggleContainer}>
           {['income', 'expense'].map(option => (
             <TouchableOpacity
               key={option}
               style={[styles.toggleButton, type === option && styles.toggleSelected]}
-              onPress={() => {
-                setType(option);
-                setSelectedCategory(null);
-              }}
+              onPress={() => { setType(option); setSelectedCategory(null); }}
             >
               <Text style={styles.toggleText}>{t[option]}</Text>
             </TouchableOpacity>
@@ -403,11 +403,10 @@ const saveTransaction = async () => {
         </View>
 
         <Text style={styles.heading}>{t.selectCategory}</Text>
-
         <View style={styles.categoriesWrapper}>
-          {categories[type].map((cat, index) => (
+          {categories[type].map((cat, idx) => (
             <TouchableOpacity
-              key={index}
+              key={idx}
               style={[styles.categoryItem, selectedCategory === cat.key && styles.selectedCategory]}
               onPress={() => setSelectedCategory(cat.key)}
             >
@@ -415,11 +414,7 @@ const saveTransaction = async () => {
               <Text style={styles.categoryItemText}>{cat.label}</Text>
             </TouchableOpacity>
           ))}
-
-          <TouchableOpacity
-            style={styles.categoryItem}
-            onPress={() => setModalVisible(true)}
-          >
+          <TouchableOpacity style={styles.categoryItem} onPress={() => setModalVisible(true)}>
             <Ionicons name="add-circle-outline" size={24} color="black" />
             <Text style={styles.categoryItemText}>{t.newCategory}</Text>
           </TouchableOpacity>
@@ -428,9 +423,7 @@ const saveTransaction = async () => {
 
       <View style={styles.saveButtonContainer}>
         <TouchableOpacity style={styles.saveButton} onPress={saveTransaction}>
-          <Text style={styles.saveButtonText}>
-            {editTransaction ? t.updateTransaction : t.saveTransaction}
-          </Text>
+          <Text style={styles.saveButtonText}>{editTransaction ? t.updateTransaction : t.saveTransaction}</Text>
         </TouchableOpacity>
       </View>
 
@@ -451,19 +444,10 @@ const saveTransaction = async () => {
               autoFocus={true}
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#007bff' }]}
-                onPress={addNewCategory}
-              >
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#007bff' }]} onPress={addNewCategory}>
                 <Text style={styles.modalButtonText}>{t.addButton}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#aaa' }]}
-                onPress={() => {
-                  setNewCategoryName('');
-                  setModalVisible(false);
-                }}
-              >
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#aaa' }]} onPress={() => { setNewCategoryName(''); setModalVisible(false); }}>
                 <Text style={styles.modalButtonText}>{t.cancelButton}</Text>
               </TouchableOpacity>
             </View>
@@ -475,151 +459,27 @@ const saveTransaction = async () => {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-    padding: 16,
-  },
-  heading: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: 'black',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  toggleButton: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    marginHorizontal: 5,
-  },
-  toggleSelected: {
-    backgroundColor: '#007bff',
-    borderColor: '#007bff',
-  },
-  toggleText: {
-    color: 'black',
-    fontWeight: 'bold',
-  },
-  amountInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-  },
-  amountInputWithCurrency: {
-    flex: 1,
-    height: 50,
-    fontSize: 18,
-    paddingHorizontal: 10,
-    color: 'black',
-  },
-  currencySymbol: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-    color: 'black',
-  },
-  categoriesWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  categoryItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: 6,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 12,
-    width: 70,
-    height: 70,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  selectedCategory: {
-    backgroundColor: '#007bff',
-  },
-  categoryItemText: {
-    marginTop: 5,
-    fontSize: 12,
-    textAlign: 'center',
-    color: 'black',
-  },
-  saveButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: 'white',
-  },
-  saveButton: {
-    backgroundColor: '#007bff',
-    borderRadius: 25,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: '#00000088',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    width: '80%',
-    padding: 20,
-    borderRadius: 12,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 16,
-    marginBottom: 12,
-    color: 'black',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-});   
+  container: { flex: 1, backgroundColor: 'white', padding: 16 },
+  heading: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: 'black' },
+  toggleContainer: { flexDirection: 'row', marginBottom: 16 },
+  toggleButton: { flex: 1, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: '#ccc', borderRadius: 10, marginHorizontal: 5 },
+  toggleSelected: { backgroundColor: '#007bff', borderColor: '#007bff' },
+  toggleText: { color: 'black', fontWeight: 'bold' },
+  amountInputWrapper: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#ccc', borderRadius: 20, paddingHorizontal: 10 },
+  amountInputWithCurrency: { flex: 1, height: 50, fontSize: 18, paddingHorizontal: 10, color: 'black' },
+  currencySymbol: { fontSize: 18, fontWeight: 'bold', paddingHorizontal: 8, color: 'black' },
+  categoriesWrapper: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  categoryItem: { alignItems: 'center', justifyContent: 'center', margin: 6, padding: 10, borderWidth: 1, borderColor: '#ccc', borderRadius: 12, width: 70, height: 70, backgroundColor: 'white' },
+  selectedCategory: { backgroundColor: '#007bff' },
+  categoryItemText: { marginTop: 5, fontSize: 12, textAlign: 'center', color: 'black' },
+  saveButtonContainer: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderColor: '#ccc', backgroundColor: 'white' },
+  saveButton: { backgroundColor: '#007bff', borderRadius: 25, paddingVertical: 14, alignItems: 'center' },
+  saveButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: '#00000088', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: 'white', width: '80%', padding: 20, borderRadius: 12, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  modalInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, marginBottom: 12, color: 'black' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 10, marginHorizontal: 5, alignItems: 'center' },
+  modalButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+});

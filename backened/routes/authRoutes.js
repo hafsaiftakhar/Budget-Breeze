@@ -1,11 +1,22 @@
+// routes/authRoutes.js
 const express = require('express');
 const nodemailer = require('nodemailer');
-const db = require('../config/db'); // SQLite connection object
+const sqlite3 = require('sqlite3').verbose();
+const jwt = require('jsonwebtoken'); // JWT import
 const router = express.Router();
 
-// Global in-memory OTP store
-global.otpStore = global.otpStore || {};
-const otpStore = global.otpStore;
+// Secret key for JWT (use .env in production)
+const JWT_SECRET = 'MyVeryStrongSecret123$!';
+
+// -----------------------------
+// SQLite connection
+// -----------------------------
+const db = new sqlite3.Database('./database.db', (err) => {
+  if (err) console.error('DB Connection error:', err);
+  else console.log('Connected to SQLite database.');
+});
+
+// Ensure users table exists
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,19 +27,30 @@ db.run(`
   )
 `);
 
+// Global OTP store
+global.otpStore = global.otpStore || {};
+const otpStore = global.otpStore;
 
-// Configure nodemailer transporter (Use your Gmail and App Password)
+// -----------------------------
+// Nodemailer config
+// -----------------------------
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'hafsaiftakhar123@gmail.com',       // Your email here
-    pass: 'cunb nsdq qwot aryq',               // Your Gmail App Password here
+    user: 'hafsaiftakhar123@gmail.com',
+    pass: 'cunb nsdq qwot aryq',
   },
 });
 
-/* ===================================
-   SIGNUP ROUTE
-=================================== */
+// Verify transporter
+transporter.verify((error, success) => {
+  if (error) console.log('Nodemailer Error:', error);
+  else console.log('Server ready to send emails');
+});
+
+// ===================================
+// SIGNUP ROUTE
+// ===================================
 router.post('/signup', (req, res) => {
   const { first_name, last_name, email, password } = req.body;
   const normalizedEmail = email.trim().toLowerCase();
@@ -40,18 +62,36 @@ router.post('/signup', (req, res) => {
     db.run(
       'INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)',
       [first_name, last_name, normalizedEmail, password],
-      function(err) {
+      function (err) {
         if (err) return res.status(500).json({ message: 'Signup failed' });
 
-        res.status(201).json({ message: 'User created successfully.', email: normalizedEmail });
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        otpStore[normalizedEmail] = otp;
+
+        // Send OTP email
+        transporter.sendMail({
+          from: 'hafsaiftakhar123@gmail.com',
+          to: normalizedEmail,
+          subject: 'Your OTP Code',
+          text: `Welcome! Your OTP code is ${otp}. It is valid for 10 minutes.`,
+        }, (error, info) => {
+          if (error) return res.status(500).json({ message: 'Failed to send OTP email' });
+
+          res.status(201).json({
+            message: 'User created successfully. OTP sent to your email.',
+            userId: this.lastID,
+            email: normalizedEmail
+          });
+        });
       }
     );
   });
 });
 
-/* ===================================
-   LOGIN ROUTE
-=================================== */
+// ===================================
+// LOGIN ROUTE with JWT
+// ===================================
 router.post('/login', (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = email.trim().toLowerCase();
@@ -62,147 +102,43 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
     res.status(200).json({
       message: 'Login Successful',
+      userId: user.id,
       first_name: user.first_name,
       last_name: user.last_name,
+      email: normalizedEmail,
+      token, // send token to client
     });
   });
 });
 
-/* ===================================
-   FORGOT PASSWORD - SEND OTP ROUTE
-=================================== */
-router.post('/forgot-password', (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email is required' });
+// ===================================
+// VERIFY TOKEN MIDDLEWARE
+// ===================================
+function verifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  const normalizedEmail = email.trim().toLowerCase();
+  if (!token) return res.status(401).json({ message: 'No token provided' });
 
-  db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail], (err, user) => {
-    if (err) return res.status(500).json({ message: 'Database error' });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore[normalizedEmail] = otp;
-
-    console.log(`Generated OTP for ${normalizedEmail}: ${otp}`);
-    console.log('Current OTP Store:', otpStore);
-
-    const mailOptions = {
-      from: 'hafsaiftakhar123@gmail.com',        
-      to: normalizedEmail,
-      subject: 'Your OTP Code for Password Reset',
-      text: `Your OTP code is ${otp}. It is valid for 10 minutes.`,
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error('Error sending OTP email:', error);
-        return res.status(500).json({ message: 'Failed to send OTP email' });
-      } else {
-        console.log('OTP email sent:', info.response);
-        res.json({ message: 'OTP sent to your email' });
-      }
-    });
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(403).json({ message: 'Invalid token' });
+    req.user = decoded; // decoded contains id and email
+    next();
   });
-});
+}
 
-/* ===================================
-   RESEND OTP ROUTE
-=================================== */
-router.post('/resend-otp', (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email is required' });
-
-  const normalizedEmail = email.trim().toLowerCase();
-
-  db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail], (err, user) => {
-    if (err) return res.status(500).json({ message: 'Database error' });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore[normalizedEmail] = otp;
-
-    console.log(`Resent OTP for ${normalizedEmail}: ${otp}`);
-    console.log('Current OTP Store:', otpStore);
-
-    const mailOptions = {
-      from: 'hafsaiftakhar123@gmail.com',
-      to: normalizedEmail,
-      subject: 'Your OTP Code (Resent)',
-      text: `Your OTP code is ${otp}. It is valid for 10 minutes.`,
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error('Error resending OTP email:', error);
-        return res.status(500).json({ message: 'Failed to resend OTP email' });
-      } else {
-        console.log('OTP resend email sent:', info.response);
-        res.json({ message: 'OTP resent successfully' });
-      }
-    });
-  });
-});
-
-/* ===================================
-   RESET PASSWORD WITH OTP ROUTE
-=================================== */
-router.post('/reset-password', (req, res) => {
-  const { email, newPassword, otp } = req.body;
-  if (!email || !newPassword || !otp) {
-    return res.status(400).json({ message: 'Email, new password, and OTP are required' });
-  }
-  const normalizedEmail = email.trim().toLowerCase();
-
-  const savedOtp = otpStore[normalizedEmail];
-  if (!savedOtp) {
-    return res.status(400).json({ message: 'No OTP found for this email. Please request OTP first.' });
-  }
-  if (String(savedOtp) !== String(otp)) {
-    return res.status(400).json({ message: 'Invalid OTP' });
-  }
-
-  db.run('UPDATE users SET password = ? WHERE email = ?', [newPassword, normalizedEmail], function(err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ message: 'Database error updating password' });
-    }
-
-    // Delete OTP after successful reset
-    delete otpStore[normalizedEmail];
-
-    res.json({ message: 'Password reset successfully' });
-  });
-});
-
-/* ===================================
-   LOGOUT ROUTE
-=================================== */
-router.post('/logout', (req, res) => {
-  // Clear session or token logic here if any
-  res.json({ message: 'Logout successful' });
-});
-
-/* ===================================
-   VERIFY OTP ROUTE
-=================================== */
-router.post('/verify-otp', (req, res) => {
-  const { email, otp } = req.body;
-  if (!email || !otp) {
-    return res.status(400).json({ message: 'Email and OTP are required' });
-  }
-  const normalizedEmail = email.trim().toLowerCase();
-  const savedOtp = otpStore[normalizedEmail];
-  if (!savedOtp) {
-    return res.status(400).json({ message: 'No OTP found for this email' });
-  }
-  if (String(savedOtp) === String(otp)) {
-    return res.json({ message: 'OTP verified successfully' });
-  } else {
-    return res.status(400).json({ message: 'Invalid OTP' });
-  }
+// Example protected route
+router.get('/protected', verifyToken, (req, res) => {
+  res.json({ message: `Hello ${req.user.email}, you are authorized!` });
 });
 
 module.exports = router;
